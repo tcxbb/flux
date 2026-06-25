@@ -2,8 +2,8 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#7F77DD">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#7B9FE0">
   <title>Flux</title>
   <style>
     :root {
@@ -43,12 +43,21 @@
 
     body {
       overflow: hidden;
+      -webkit-user-select: none;
+      user-select: none;
     }
 
     button,
     input,
     textarea {
       font: inherit;
+    }
+
+    input,
+    textarea,
+    .edit-panel textarea {
+      -webkit-user-select: text;
+      user-select: text;
     }
 
     button {
@@ -179,6 +188,13 @@
       font-size: 12px;
     }
 
+    .menu .version-line {
+      min-height: 26px;
+      justify-content: flex-end;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
     .divider {
       height: 0.5px;
       margin: 6px 4px;
@@ -286,11 +302,12 @@
       bottom: 58px;
       z-index: 30;
       display: flex;
+      flex-wrap: wrap;
       gap: 8px;
       padding: 8px;
       border: 0.5px solid var(--border);
       border-radius: 10px;
-      overflow-x: auto;
+      overflow-x: hidden;
       background: var(--card);
       box-shadow: 0 10px 28px rgba(60, 52, 137, 0.14);
       transform-origin: bottom left;
@@ -531,9 +548,10 @@
 
     .edit-types {
       display: flex;
+      flex-wrap: wrap;
       gap: 7px;
       margin: 9px 0;
-      overflow-x: auto;
+      overflow-x: hidden;
     }
 
     .edit-actions {
@@ -859,6 +877,8 @@
         <button id="syncButton" type="button">同步设置</button>
         <div class="divider"></div>
         <div id="syncStatusLine" class="status-line">同步状态：未设置</div>
+        <div class="divider"></div>
+        <div id="versionLine" class="status-line version-line"></div>
       </nav>
     </header>
 
@@ -975,6 +995,7 @@
       const SETTINGS_KEY = "flux.settings.v1";
       const FIRST_RUN_KEY = "flux.firstRunDismissed";
       const GIST_FILE = "flux-data.json";
+      const APP_VERSION = "v1.3";
       const PAGE_SIZE = 50;
       const TYPE_COLORS = ["#7F77DD", "#1D9E75", "#D4537E", "#BA7517", "#4A90A4", "#C15B44", "#6E6A86", "#2F7D5F"];
 
@@ -997,6 +1018,7 @@
         menu: document.querySelector("#mainMenu"),
         syncDot: document.querySelector("#syncDot"),
         syncStatusLine: document.querySelector("#syncStatusLine"),
+        versionLine: document.querySelector("#versionLine"),
         typeTrigger: document.querySelector("#typeTrigger"),
         typePopover: document.querySelector("#typePopover"),
         exportButton: document.querySelector("#exportButton"),
@@ -1090,7 +1112,6 @@
         els.offlineButton.addEventListener("click", () => {
           localStorage.setItem(FIRST_RUN_KEY, "1");
           closeModals();
-          els.input.focus();
         });
 
         els.saveSyncButton.addEventListener("click", saveSyncSettings);
@@ -1107,13 +1128,11 @@
         els.addTypeButton.addEventListener("click", addType);
         els.doneTypesButton.addEventListener("click", () => {
           closeModals();
-          els.input.focus();
         });
 
         document.querySelectorAll("[data-close-modal]").forEach((button) => {
           button.addEventListener("click", () => {
             closeModals();
-            els.input.focus();
           });
         });
 
@@ -1199,9 +1218,14 @@
 
       function renderAll() {
         renderSyncState();
+        renderVersion();
         renderTypeTrigger();
         renderTypePopover();
         renderFeed();
+      }
+
+      function renderVersion() {
+        els.versionLine.textContent = APP_VERSION;
       }
 
       function renderSyncState() {
@@ -1419,7 +1443,6 @@
         cancelButton.addEventListener("click", () => {
           editingId = null;
           renderFeed();
-          els.input.focus();
         });
 
         const saveButton = document.createElement("button");
@@ -1456,7 +1479,6 @@
         resizeInput();
         renderAll();
         els.feed.scrollTop = 0;
-        els.input.focus();
         scheduleSync();
       }
 
@@ -1476,7 +1498,6 @@
         editingId = null;
         saveData();
         renderAll();
-        els.input.focus();
         scheduleSync();
       }
 
@@ -1496,7 +1517,6 @@
         editingId = null;
         saveData();
         renderAll();
-        els.input.focus();
         scheduleSync();
       }
 
@@ -1606,7 +1626,6 @@
         const ok = await syncWithGist({ forceCreate: !gistId, reason: "settings" });
         if (ok) {
           closeModals();
-          els.input.focus();
         } else {
           els.syncError.textContent = settings.lastError || "同步失败，请检查 Token 和 Gist ID。";
         }
@@ -1995,12 +2014,12 @@
       }
 
       function initPwa() {
-        const logoSvg = `<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><rect width="512" height="512" rx="112" fill="#7F77DD"/><rect x="120" y="176" width="272" height="28" rx="14" fill="white" opacity="0.95"/><rect x="120" y="242" width="200" height="28" rx="14" fill="white" opacity="0.95"/><rect x="120" y="308" width="136" height="28" rx="14" fill="white" opacity="0.95"/></svg>`;
+        const logoSvg = `<svg width="512" height="512" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg"><rect width="120" height="120" rx="26" fill="#7B9FE0"/><rect x="28" y="38" width="64" height="9" rx="4.5" fill="white" opacity="0.95"/><rect x="28" y="56" width="48" height="9" rx="4.5" fill="white" opacity="0.95"/><rect x="28" y="74" width="32" height="9" rx="4.5" fill="white" opacity="0.95"/></svg>`;
         const icon = `data:image/svg+xml;base64,${btoa(logoSvg)}`;
         const manifest = {
           name: "Flux",
           short_name: "Flux",
-          theme_color: "#7F77DD",
+          theme_color: "#7B9FE0",
           background_color: "#FAFAFA",
           display: "standalone",
           start_url: ".",
