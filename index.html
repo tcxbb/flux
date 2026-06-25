@@ -1,0 +1,2046 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#7F77DD">
+  <title>Flux</title>
+  <style>
+    :root {
+      --primary-light: #EEEDFE;
+      --primary-soft: #AFA9EC;
+      --primary: #7F77DD;
+      --primary-dark: #3C3489;
+      --primary-deep: #534AB7;
+      --bg: #FAFAFA;
+      --card: #FFFFFF;
+      --border: rgba(0, 0, 0, 0.08);
+      --text: #1A1A1A;
+      --secondary: #888780;
+      --muted: #B4B2A9;
+      --danger: #D4537E;
+      --ok: #1D9E75;
+      --warn: #BA7517;
+      color-scheme: light;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: inherit;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    body {
+      overflow: hidden;
+    }
+
+    button,
+    input,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    button:disabled {
+      cursor: default;
+      opacity: 0.45;
+    }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100dvh;
+      max-width: 720px;
+      margin: 0 auto;
+      background: var(--bg);
+    }
+
+    .topbar {
+      position: relative;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: calc(48px + env(safe-area-inset-top));
+      padding: env(safe-area-inset-top) 14px 0;
+      border-bottom: 0.5px solid var(--border);
+      background: rgba(250, 250, 250, 0.92);
+      backdrop-filter: blur(18px);
+    }
+
+    .brand {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 500;
+      letter-spacing: 0;
+      color: var(--text);
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sync-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+      box-shadow: 0 0 0 2px rgba(127, 119, 221, 0.08);
+    }
+
+    .sync-dot.synced {
+      background: var(--ok);
+    }
+
+    .sync-dot.syncing {
+      background: var(--warn);
+    }
+
+    .sync-dot.failed {
+      background: var(--danger);
+    }
+
+    .icon-btn {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: transparent;
+      color: var(--text);
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .icon-btn:hover {
+      background: rgba(0, 0, 0, 0.04);
+    }
+
+    .menu {
+      position: absolute;
+      top: calc(45px + env(safe-area-inset-top));
+      right: 10px;
+      z-index: 40;
+      min-width: 230px;
+      padding: 6px;
+      border: 0.5px solid var(--border);
+      border-radius: 8px;
+      background: var(--card);
+      box-shadow: 0 12px 32px rgba(60, 52, 137, 0.16);
+      transform-origin: top right;
+      animation: pop 100ms ease-out;
+    }
+
+    .menu[hidden] {
+      display: none;
+    }
+
+    .menu button,
+    .menu .status-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      min-height: 36px;
+      padding: 0 10px;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text);
+      font-size: 14px;
+      text-align: left;
+    }
+
+    .menu button:hover {
+      background: var(--primary-light);
+    }
+
+    .menu .status-line {
+      cursor: default;
+      color: var(--secondary);
+      font-size: 12px;
+    }
+
+    .divider {
+      height: 0.5px;
+      margin: 6px 4px;
+      background: var(--border);
+    }
+
+    .composer {
+      position: relative;
+      z-index: 10;
+      padding: 12px 12px 10px;
+      background: rgba(250, 250, 250, 0.95);
+      backdrop-filter: blur(18px);
+    }
+
+    .input-shell {
+      border: 0.5px solid var(--border);
+      border-radius: 10px;
+      background: var(--card);
+      transition: border-color 120ms ease, box-shadow 120ms ease;
+    }
+
+    .input-shell:focus-within {
+      border-color: rgba(127, 119, 221, 0.48);
+      box-shadow: 0 0 0 3px var(--primary-light);
+    }
+
+    #captureInput {
+      display: block;
+      width: 100%;
+      min-height: 78px;
+      max-height: 205px;
+      padding: 12px 12px 4px;
+      border: 0;
+      outline: 0;
+      resize: none;
+      overflow-y: auto;
+      background: transparent;
+      color: var(--text);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    #captureInput::placeholder {
+      color: #AAA8A2;
+    }
+
+    .composer-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 42px;
+      padding: 3px 8px 8px;
+    }
+
+    .type-trigger {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-width: 34px;
+      height: 24px;
+      padding: 0 9px;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--secondary);
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .type-trigger:hover,
+    .type-trigger.active {
+      background: var(--primary-light);
+      color: var(--primary-dark);
+    }
+
+    .type-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .send-btn {
+      display: grid;
+      place-items: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #FFFFFF;
+      font-size: 19px;
+      line-height: 1;
+      transition: transform 120ms ease, background 120ms ease;
+    }
+
+    .send-btn:not(:disabled):active {
+      transform: translateY(1px);
+      background: var(--primary-deep);
+    }
+
+    .type-popover {
+      position: absolute;
+      left: 12px;
+      right: 12px;
+      bottom: 58px;
+      z-index: 30;
+      display: flex;
+      gap: 8px;
+      padding: 8px;
+      border: 0.5px solid var(--border);
+      border-radius: 10px;
+      overflow-x: auto;
+      background: var(--card);
+      box-shadow: 0 10px 28px rgba(60, 52, 137, 0.14);
+      transform-origin: bottom left;
+      animation: pop 100ms ease-out;
+    }
+
+    .type-popover[hidden] {
+      display: none;
+    }
+
+    .type-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex: 0 0 auto;
+      min-height: 30px;
+      padding: 0 11px;
+      border: 0.5px solid var(--border);
+      border-radius: 999px;
+      background: #FFFFFF;
+      color: var(--text);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .type-chip.selected {
+      border-color: var(--chip-color, var(--primary));
+      background: var(--primary-light);
+      color: var(--primary-dark);
+    }
+
+    .chip-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--chip-color, var(--primary));
+    }
+
+    .feed {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 12px 12px calc(22px + env(safe-area-inset-bottom));
+    }
+
+    .empty {
+      padding: 48px 16px;
+      color: var(--muted);
+      font-size: 14px;
+      text-align: center;
+    }
+
+    .day-group {
+      margin-bottom: 16px;
+    }
+
+    .day-heading {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 8px 0 9px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+    }
+
+    .day-heading::after {
+      content: "";
+      flex: 1;
+      height: 0.5px;
+      background: rgba(0, 0, 0, 0.07);
+    }
+
+    .entry {
+      position: relative;
+      margin-bottom: 8px;
+      border: 0.5px solid var(--border);
+      border-radius: 10px;
+      background: var(--card);
+      animation: settle 150ms ease-out;
+    }
+
+    .entry-body {
+      width: 100%;
+      padding: 12px 34px 12px 12px;
+      background: transparent;
+      color: inherit;
+      text-align: left;
+    }
+
+    .entry-menu-btn {
+      position: absolute;
+      top: 7px;
+      right: 7px;
+      display: grid;
+      place-items: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: transparent;
+      color: var(--secondary);
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .entry-menu-btn:hover {
+      background: var(--primary-light);
+      color: var(--primary-dark);
+    }
+
+    .entry-text-wrap {
+      position: relative;
+      cursor: default;
+      transition: max-height 250ms ease-out;
+    }
+
+    .entry.has-overflow .entry-text-wrap {
+      max-height: 112px;
+      overflow: hidden;
+    }
+
+    .entry.expanded .entry-text-wrap {
+      max-height: 2000px;
+      transition: max-height 300ms ease-out;
+    }
+
+    .entry.has-overflow .entry-text-wrap {
+      cursor: pointer;
+    }
+
+    .entry.has-overflow .entry-text-wrap::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 42px;
+      background: linear-gradient(rgba(255, 255, 255, 0), #FFFFFF 70%);
+      pointer-events: none;
+      opacity: 1;
+      transition: opacity 160ms ease-out;
+    }
+
+    .entry.expanded .entry-text-wrap::after {
+      opacity: 0;
+    }
+
+    .entry-text {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .entry-toggle {
+      display: none;
+      position: absolute;
+      right: 34px;
+      bottom: 31px;
+      z-index: 1;
+      padding: 0;
+      background: transparent;
+      color: var(--primary-deep);
+      font-size: 12px;
+    }
+
+    .entry.has-overflow .entry-toggle,
+    .entry.expanded .entry-toggle {
+      display: inline;
+    }
+
+    .entry-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 10px;
+      color: var(--secondary);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .entry-tags {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .entry-tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 18px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      background: var(--tag-bg);
+      color: var(--tag-color);
+      font-size: 11px;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+
+    .entry-time {
+      margin-left: auto;
+      white-space: nowrap;
+      text-align: right;
+    }
+
+    .entry.editing {
+      border-color: rgba(127, 119, 221, 0.42);
+      box-shadow: 0 0 0 3px var(--primary-light);
+    }
+
+    .edit-panel {
+      padding: 10px;
+    }
+
+    .edit-panel textarea {
+      display: block;
+      width: 100%;
+      min-height: 100px;
+      padding: 8px;
+      border: 0.5px solid var(--border);
+      border-radius: 8px;
+      outline: 0;
+      resize: vertical;
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .edit-panel textarea:focus {
+      border-color: rgba(127, 119, 221, 0.48);
+      box-shadow: 0 0 0 3px var(--primary-light);
+    }
+
+    .edit-types {
+      display: flex;
+      gap: 7px;
+      margin: 9px 0;
+      overflow-x: auto;
+    }
+
+    .edit-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .text-btn,
+    .primary-btn {
+      min-height: 34px;
+      padding: 0 13px;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    .text-btn {
+      background: transparent;
+      color: var(--secondary);
+    }
+
+    .text-btn.danger {
+      color: var(--danger);
+    }
+
+    .primary-btn {
+      background: var(--primary);
+      color: #FFFFFF;
+    }
+
+    .load-more {
+      display: block;
+      width: 100%;
+      min-height: 38px;
+      border: 0.5px solid var(--border);
+      border-radius: 8px;
+      background: #FFFFFF;
+      color: var(--primary-dark);
+      font-size: 14px;
+    }
+
+    .context-menu {
+      position: fixed;
+      z-index: 100;
+      width: 116px;
+      padding: 5px;
+      border: 0.5px solid var(--border);
+      border-radius: 8px;
+      background: #FFFFFF;
+      box-shadow: 0 12px 32px rgba(60, 52, 137, 0.16);
+    }
+
+    .context-menu[hidden] {
+      display: none;
+    }
+
+    .context-menu button {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      width: 100%;
+      min-height: 34px;
+      padding: 0 9px;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text);
+      font-size: 14px;
+      text-align: left;
+    }
+
+    .context-menu button:hover {
+      background: var(--primary-light);
+    }
+
+    .context-menu .danger {
+      color: var(--danger);
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      display: grid;
+      place-items: end center;
+      padding: 12px;
+      background: rgba(26, 26, 26, 0.26);
+    }
+
+    .modal-backdrop[hidden] {
+      display: none;
+    }
+
+    .modal-backdrop.center {
+      place-items: center;
+    }
+
+    #confirmModal {
+      z-index: 140;
+    }
+
+    .modal {
+      width: min(100%, 520px);
+      max-height: min(82dvh, 660px);
+      border-radius: 12px 12px 10px 10px;
+      overflow: hidden;
+      background: var(--card);
+      box-shadow: 0 18px 54px rgba(26, 26, 26, 0.24);
+      animation: sheet 140ms ease-out;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 50px;
+      padding: 0 14px;
+      border-bottom: 0.5px solid var(--border);
+    }
+
+    .modal-title {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 500;
+    }
+
+    .modal-body {
+      max-height: calc(min(82dvh, 660px) - 104px);
+      overflow-y: auto;
+      padding: 14px;
+    }
+
+    .modal-footer {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      min-height: 54px;
+      padding: 9px 14px;
+      border-top: 0.5px solid var(--border);
+    }
+
+    .confirm-modal {
+      width: min(100%, 360px);
+      border-radius: 10px;
+    }
+
+    .confirm-copy {
+      margin: 0;
+      white-space: pre-line;
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .field label {
+      color: var(--secondary);
+      font-size: 12px;
+    }
+
+    .field input {
+      width: 100%;
+      min-height: 40px;
+      padding: 0 10px;
+      border: 0.5px solid var(--border);
+      border-radius: 8px;
+      outline: 0;
+      color: var(--text);
+      background: #FFFFFF;
+      font-size: 14px;
+    }
+
+    .range-options {
+      display: grid;
+      gap: 8px;
+    }
+
+    .range-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 32px;
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .range-option input {
+      accent-color: var(--primary);
+    }
+
+    .date-range {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .field input:focus {
+      border-color: rgba(127, 119, 221, 0.48);
+      box-shadow: 0 0 0 3px var(--primary-light);
+    }
+
+    .hint {
+      margin: 0 0 14px;
+      color: var(--secondary);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .error {
+      min-height: 18px;
+      margin: 4px 0 0;
+      color: var(--danger);
+      font-size: 12px;
+    }
+
+    .type-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      padding: 10px 0;
+      border-bottom: 0.5px solid var(--border);
+    }
+
+    .type-row:last-child {
+      border-bottom: 0;
+    }
+
+    .type-row input {
+      min-height: 36px;
+      padding: 0 9px;
+      border: 0.5px solid var(--border);
+      border-radius: 8px;
+      outline: 0;
+    }
+
+    .swatches {
+      grid-column: 1 / -1;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .swatch {
+      width: 24px;
+      height: 24px;
+      border: 2px solid transparent;
+      border-radius: 50%;
+      background: var(--swatch);
+    }
+
+    .swatch.selected {
+      border-color: var(--primary-dark);
+      box-shadow: 0 0 0 2px #FFFFFF inset;
+    }
+
+    @keyframes pop {
+      from {
+        opacity: 0;
+        transform: scale(0.97);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    @keyframes settle {
+      from {
+        opacity: 0;
+        transform: translateY(-6px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes sheet {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (min-width: 620px) {
+      .app {
+        border-left: 0.5px solid var(--border);
+        border-right: 0.5px solid var(--border);
+      }
+
+      .modal-backdrop {
+        place-items: center;
+      }
+
+      .modal {
+        border-radius: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <h1 class="brand">Flux</h1>
+      <div class="top-actions">
+        <span id="syncDot" class="sync-dot" title="未设置同步"></span>
+        <button id="menuButton" class="icon-btn" type="button" aria-label="设置">⋯</button>
+      </div>
+      <nav id="mainMenu" class="menu" hidden>
+        <button id="exportButton" type="button">导出 MD</button>
+        <button id="typesButton" type="button">管理类型</button>
+        <button id="syncButton" type="button">同步设置</button>
+        <div class="divider"></div>
+        <div id="syncStatusLine" class="status-line">同步状态：未设置</div>
+      </nav>
+    </header>
+
+    <section class="composer" aria-label="快速记录">
+      <div id="typePopover" class="type-popover" hidden></div>
+      <div class="input-shell">
+        <textarea id="captureInput" rows="3" placeholder="此刻的想法…"></textarea>
+        <div class="composer-row">
+          <button id="typeTrigger" class="type-trigger" type="button" aria-label="选择类型">#</button>
+          <button id="sendButton" class="send-btn" type="button" aria-label="发送" disabled>↑</button>
+        </div>
+      </div>
+    </section>
+
+    <main id="feed" class="feed" aria-live="polite"></main>
+  </div>
+
+  <div id="contextMenu" class="context-menu" hidden>
+    <button id="contextEdit" type="button"><span>✏️</span>编辑</button>
+    <button id="contextDelete" class="danger" type="button"><span>🗑️</span>删除</button>
+  </div>
+
+  <div id="confirmModal" class="modal-backdrop center" hidden>
+    <section class="modal confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <header class="modal-header">
+        <h2 id="confirmTitle" class="modal-title">确认删除</h2>
+      </header>
+      <div class="modal-body">
+        <p id="confirmMessage" class="confirm-copy"></p>
+      </div>
+      <footer class="modal-footer">
+        <button id="confirmCancelButton" class="text-btn" type="button">取消</button>
+        <button id="confirmDeleteButton" class="primary-btn" type="button">删除</button>
+      </footer>
+    </section>
+  </div>
+
+  <div id="exportModal" class="modal-backdrop" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="exportTitle">
+      <header class="modal-header">
+        <h2 id="exportTitle" class="modal-title">导出 MD</h2>
+        <button class="icon-btn" type="button" data-close-modal aria-label="关闭">×</button>
+      </header>
+      <div class="modal-body">
+        <div class="range-options">
+          <label class="range-option"><input type="radio" name="exportRange" value="today">今天</label>
+          <label class="range-option"><input type="radio" name="exportRange" value="7">最近 7 天</label>
+          <label class="range-option"><input type="radio" name="exportRange" value="30">最近 30 天</label>
+          <label class="range-option"><input type="radio" name="exportRange" value="all" checked>全部记录</label>
+          <label class="range-option"><input type="radio" name="exportRange" value="custom">自定义范围</label>
+        </div>
+        <div id="customRangeFields" class="date-range" hidden>
+          <div class="field">
+            <label for="exportStartDate">开始日期</label>
+            <input id="exportStartDate" type="date">
+          </div>
+          <div class="field">
+            <label for="exportEndDate">结束日期</label>
+            <input id="exportEndDate" type="date">
+          </div>
+        </div>
+      </div>
+      <footer class="modal-footer">
+        <button class="text-btn" type="button" data-close-modal>取消</button>
+        <button id="confirmExportButton" class="primary-btn" type="button">导出</button>
+      </footer>
+    </section>
+  </div>
+
+  <div id="syncModal" class="modal-backdrop" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="syncTitle">
+      <header class="modal-header">
+        <h2 id="syncTitle" class="modal-title">同步设置</h2>
+        <button class="icon-btn" type="button" data-close-modal aria-label="关闭">×</button>
+      </header>
+      <div class="modal-body">
+        <p class="hint">填写 GitHub Personal Access Token 和 Gist ID。Gist ID 留空时会自动创建新的 Gist。</p>
+        <div class="field">
+          <label for="tokenInput">GitHub Token</label>
+          <input id="tokenInput" type="password" autocomplete="off" spellcheck="false" placeholder="需要 gist 权限">
+        </div>
+        <div class="field">
+          <label for="gistInput">Gist ID</label>
+          <input id="gistInput" type="text" autocomplete="off" spellcheck="false" placeholder="留空自动创建">
+        </div>
+        <p id="syncError" class="error"></p>
+      </div>
+      <footer class="modal-footer">
+        <button id="offlineButton" class="text-btn" type="button">稍后</button>
+        <button id="saveSyncButton" class="primary-btn" type="button">保存并同步</button>
+      </footer>
+    </section>
+  </div>
+
+  <div id="typesModal" class="modal-backdrop" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="typesTitle">
+      <header class="modal-header">
+        <h2 id="typesTitle" class="modal-title">管理类型</h2>
+        <button class="icon-btn" type="button" data-close-modal aria-label="关闭">×</button>
+      </header>
+      <div class="modal-body">
+        <div id="typesList"></div>
+      </div>
+      <footer class="modal-footer">
+        <button id="addTypeButton" class="text-btn" type="button">新增类型</button>
+        <button id="doneTypesButton" class="primary-btn" type="button">完成</button>
+      </footer>
+    </section>
+  </div>
+
+  <script>
+    (() => {
+      const DATA_KEY = "flux.data.v1";
+      const SETTINGS_KEY = "flux.settings.v1";
+      const FIRST_RUN_KEY = "flux.firstRunDismissed";
+      const GIST_FILE = "flux-data.json";
+      const PAGE_SIZE = 50;
+      const TYPE_COLORS = ["#7F77DD", "#1D9E75", "#D4537E", "#BA7517", "#4A90A4", "#C15B44", "#6E6A86", "#2F7D5F"];
+
+      const defaultData = {
+        version: "1.0",
+        types: [
+          { id: "idea", label: "想法", color: "#7F77DD" },
+          { id: "todo", label: "待办", color: "#1D9E75" },
+          { id: "mood", label: "情绪", color: "#D4537E" },
+          { id: "spark", label: "灵感", color: "#BA7517" }
+        ],
+        entries: []
+      };
+
+      const els = {
+        input: document.querySelector("#captureInput"),
+        send: document.querySelector("#sendButton"),
+        feed: document.querySelector("#feed"),
+        menuButton: document.querySelector("#menuButton"),
+        menu: document.querySelector("#mainMenu"),
+        syncDot: document.querySelector("#syncDot"),
+        syncStatusLine: document.querySelector("#syncStatusLine"),
+        typeTrigger: document.querySelector("#typeTrigger"),
+        typePopover: document.querySelector("#typePopover"),
+        exportButton: document.querySelector("#exportButton"),
+        typesButton: document.querySelector("#typesButton"),
+        syncButton: document.querySelector("#syncButton"),
+        exportModal: document.querySelector("#exportModal"),
+        customRangeFields: document.querySelector("#customRangeFields"),
+        exportStartDate: document.querySelector("#exportStartDate"),
+        exportEndDate: document.querySelector("#exportEndDate"),
+        confirmExportButton: document.querySelector("#confirmExportButton"),
+        confirmModal: document.querySelector("#confirmModal"),
+        confirmTitle: document.querySelector("#confirmTitle"),
+        confirmMessage: document.querySelector("#confirmMessage"),
+        confirmCancelButton: document.querySelector("#confirmCancelButton"),
+        confirmDeleteButton: document.querySelector("#confirmDeleteButton"),
+        syncModal: document.querySelector("#syncModal"),
+        typesModal: document.querySelector("#typesModal"),
+        tokenInput: document.querySelector("#tokenInput"),
+        gistInput: document.querySelector("#gistInput"),
+        syncError: document.querySelector("#syncError"),
+        offlineButton: document.querySelector("#offlineButton"),
+        saveSyncButton: document.querySelector("#saveSyncButton"),
+        typesList: document.querySelector("#typesList"),
+        addTypeButton: document.querySelector("#addTypeButton"),
+        doneTypesButton: document.querySelector("#doneTypesButton"),
+        contextMenu: document.querySelector("#contextMenu"),
+        contextEdit: document.querySelector("#contextEdit"),
+        contextDelete: document.querySelector("#contextDelete")
+      };
+
+      let data = loadData();
+      let settings = loadSettings();
+      let selectedTypeIds = new Set();
+      let editingId = null;
+      let visibleLimit = PAGE_SIZE;
+      let syncTimer = null;
+      let contextEntryId = null;
+      let longPressTimer = null;
+      let pendingConfirm = null;
+      const expandedEntryIds = new Set();
+
+      initPwa();
+      bindEvents();
+      renderAll();
+      resizeInput();
+      setTimeout(() => els.input.focus(), 80);
+
+      if (settings.token) {
+        syncWithGist({ reason: "startup" });
+      } else if (!localStorage.getItem(FIRST_RUN_KEY)) {
+        setTimeout(() => openSyncModal(), 260);
+      }
+
+      function bindEvents() {
+        els.input.addEventListener("input", () => {
+          resizeInput();
+          els.send.disabled = !els.input.value.trim();
+        });
+
+        els.input.addEventListener("keydown", (event) => {
+          if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+            event.preventDefault();
+            addEntry();
+          }
+        });
+
+        els.send.addEventListener("click", addEntry);
+        els.typeTrigger.addEventListener("click", toggleTypePopover);
+
+        els.menuButton.addEventListener("click", (event) => {
+          event.stopPropagation();
+          hideContextMenu();
+          els.menu.hidden = !els.menu.hidden;
+        });
+
+        els.exportButton.addEventListener("click", () => {
+          hideMenu();
+          openExportModal();
+        });
+
+        els.typesButton.addEventListener("click", () => {
+          hideMenu();
+          openTypesModal();
+        });
+
+        els.syncButton.addEventListener("click", () => {
+          hideMenu();
+          openSyncModal();
+        });
+
+        els.offlineButton.addEventListener("click", () => {
+          localStorage.setItem(FIRST_RUN_KEY, "1");
+          closeModals();
+          els.input.focus();
+        });
+
+        els.saveSyncButton.addEventListener("click", saveSyncSettings);
+        els.confirmExportButton.addEventListener("click", confirmExport);
+        document.querySelectorAll("input[name='exportRange']").forEach((input) => {
+          input.addEventListener("change", updateExportRangeFields);
+        });
+        els.confirmCancelButton.addEventListener("click", closeConfirmModal);
+        els.confirmDeleteButton.addEventListener("click", () => {
+          const action = pendingConfirm;
+          closeConfirmModal();
+          if (action) action();
+        });
+        els.addTypeButton.addEventListener("click", addType);
+        els.doneTypesButton.addEventListener("click", () => {
+          closeModals();
+          els.input.focus();
+        });
+
+        document.querySelectorAll("[data-close-modal]").forEach((button) => {
+          button.addEventListener("click", () => {
+            closeModals();
+            els.input.focus();
+          });
+        });
+
+        document.addEventListener("click", (event) => {
+          if (!els.menu.contains(event.target) && event.target !== els.menuButton) hideMenu();
+          if (!els.typePopover.contains(event.target) && event.target !== els.typeTrigger) hideTypePopover();
+          if (!els.contextMenu.contains(event.target)) hideContextMenu();
+        });
+
+        document.addEventListener("keydown", (event) => {
+          if (event.key === "Escape") {
+            hideMenu();
+            hideTypePopover();
+            hideContextMenu();
+            closeModals();
+          }
+        });
+
+        window.addEventListener("online", () => scheduleSync());
+        window.addEventListener("beforeunload", saveData);
+
+        els.contextEdit.addEventListener("click", () => {
+          if (contextEntryId) startEditing(contextEntryId);
+          hideContextMenu();
+        });
+
+        els.contextDelete.addEventListener("click", () => {
+          if (contextEntryId) requestDeleteEntry(contextEntryId);
+          hideContextMenu();
+        });
+      }
+
+      function loadData() {
+        try {
+          const parsed = JSON.parse(localStorage.getItem(DATA_KEY));
+          if (parsed && Array.isArray(parsed.entries) && Array.isArray(parsed.types)) {
+            return normalizeData(parsed);
+          }
+        } catch (error) {
+          console.warn(error);
+        }
+        return structuredClone(defaultData);
+      }
+
+      function normalizeData(value) {
+        const typeIds = new Set();
+        const types = (value.types || defaultData.types).filter((type) => {
+          if (!type || !type.id || typeIds.has(type.id)) return false;
+          typeIds.add(type.id);
+          return true;
+        }).slice(0, 8).map((type) => ({
+          id: String(type.id),
+          label: String(type.label || "未命名").slice(0, 12),
+          color: validColor(type.color) ? type.color : "#7F77DD"
+        }));
+
+        const entries = (value.entries || []).filter((entry) => entry && entry.id && entry.text).map((entry) => ({
+          id: String(entry.id),
+          text: String(entry.text),
+          type: normalizeEntryTypes(entry.type, typeIds),
+          createdAt: entry.createdAt || nowIso(),
+          updatedAt: entry.updatedAt || entry.createdAt || nowIso()
+        }));
+
+        return { version: "1.0", types: types.length ? types : structuredClone(defaultData.types), entries };
+      }
+
+      function loadSettings() {
+        try {
+          return Object.assign({ token: "", gistId: "", lastSync: "", status: "idle", lastError: "" }, JSON.parse(localStorage.getItem(SETTINGS_KEY)));
+        } catch (error) {
+          return { token: "", gistId: "", lastSync: "", status: "idle", lastError: "" };
+        }
+      }
+
+      function saveData() {
+        localStorage.setItem(DATA_KEY, JSON.stringify(data));
+      }
+
+      function saveSettings() {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+      }
+
+      function renderAll() {
+        renderSyncState();
+        renderTypeTrigger();
+        renderTypePopover();
+        renderFeed();
+      }
+
+      function renderSyncState() {
+        els.syncDot.className = "sync-dot";
+        if (settings.status === "synced") els.syncDot.classList.add("synced");
+        if (settings.status === "syncing") els.syncDot.classList.add("syncing");
+        if (settings.status === "failed") els.syncDot.classList.add("failed");
+
+        let text = "同步状态：未设置";
+        if (settings.status === "syncing") text = "同步状态：同步中";
+        if (settings.status === "failed") text = "同步状态：失败";
+        if (settings.status === "synced") text = `上次同步：${formatDisplay(settings.lastSync)}`;
+        els.syncStatusLine.textContent = text;
+        els.syncDot.title = text.replace("：", " ");
+      }
+
+      function renderTypeTrigger() {
+        const count = selectedTypeIds.size;
+        els.typeTrigger.classList.toggle("active", count > 0);
+        if (!count) {
+          els.typeTrigger.textContent = "#";
+          els.typeTrigger.style.color = "";
+          return;
+        }
+        els.typeTrigger.textContent = `#${count}`;
+        els.typeTrigger.style.color = "var(--primary)";
+      }
+
+      function renderTypePopover() {
+        els.typePopover.innerHTML = "";
+        data.types.forEach((type) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = `type-chip${selectedTypeIds.has(type.id) ? " selected" : ""}`;
+          button.style.setProperty("--chip-color", type.color);
+          button.innerHTML = `<span class="chip-dot"></span>${escapeHtml(type.label)}`;
+          button.addEventListener("click", (event) => {
+            event.stopPropagation();
+            if (selectedTypeIds.has(type.id)) {
+              selectedTypeIds.delete(type.id);
+            } else {
+              selectedTypeIds.add(type.id);
+            }
+            renderTypeTrigger();
+            renderTypePopover();
+          });
+          els.typePopover.append(button);
+        });
+      }
+
+      function renderFeed() {
+        const entries = sortedEntries().slice(0, visibleLimit);
+        els.feed.innerHTML = "";
+
+        if (!entries.length) {
+          const empty = document.createElement("div");
+          empty.className = "empty";
+          empty.textContent = "还没有记录";
+          els.feed.append(empty);
+          return;
+        }
+
+        const groups = groupEntries(entries);
+        groups.forEach((group) => {
+          const section = document.createElement("section");
+          section.className = "day-group";
+
+          const heading = document.createElement("div");
+          heading.className = "day-heading";
+          heading.textContent = groupTitle(group.key);
+          section.append(heading);
+
+          group.items.forEach((entry) => section.append(renderEntry(entry)));
+          els.feed.append(section);
+        });
+
+        if (data.entries.length > visibleLimit) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "load-more";
+          button.textContent = "加载更多";
+          button.addEventListener("click", () => {
+            visibleLimit += PAGE_SIZE;
+            renderFeed();
+          });
+          els.feed.append(button);
+        }
+      }
+
+      function renderEntry(entry) {
+        const types = getEntryTypes(entry);
+        const article = document.createElement("article");
+        const isExpanded = expandedEntryIds.has(entry.id);
+        const hasOverflow = textNeedsToggle(entry.text);
+        article.className = `entry ${isExpanded ? "expanded" : "collapsed"}${hasOverflow ? " has-overflow" : ""}${editingId === entry.id ? " editing" : ""}`;
+        article.dataset.id = entry.id;
+
+        if (editingId === entry.id) {
+          article.append(renderEditPanel(entry));
+          return article;
+        }
+
+        const menuButton = document.createElement("button");
+        menuButton.type = "button";
+        menuButton.className = "entry-menu-btn";
+        menuButton.setAttribute("aria-label", "记录操作");
+        menuButton.textContent = "⋯";
+        menuButton.addEventListener("click", (event) => {
+          event.stopPropagation();
+          const rect = menuButton.getBoundingClientRect();
+          openContextMenu(entry.id, rect.left, rect.bottom + 4);
+        });
+
+        const body = document.createElement("div");
+        body.className = "entry-body";
+        body.innerHTML = `
+          <div class="entry-text-wrap">
+            <div class="entry-text">${escapeHtml(entry.text)}</div>
+          </div>
+          ${hasOverflow ? `<button class="entry-toggle" type="button">${isExpanded ? "收起" : "展开"}</button>` : ""}
+          <div class="entry-meta">
+            <div class="entry-tags">${types.map((type) => renderTag(type)).join("")}</div>
+            <span class="entry-time">${formatDisplay(entry.createdAt)}</span>
+          </div>
+        `;
+        const textWrap = body.querySelector(".entry-text-wrap");
+        const toggleButton = body.querySelector(".entry-toggle");
+        const toggleDisplay = (event) => {
+          event.stopPropagation();
+          toggleEntry(entry.id, article);
+        };
+        textWrap.addEventListener("click", () => {
+          if (article.classList.contains("has-overflow") || expandedEntryIds.has(entry.id)) toggleEntry(entry.id, article);
+        });
+        if (toggleButton) toggleButton.addEventListener("click", toggleDisplay);
+        body.addEventListener("contextmenu", (event) => {
+          event.preventDefault();
+          openContextMenu(entry.id, event.clientX, event.clientY);
+        });
+        body.addEventListener("pointerdown", (event) => {
+          if (event.pointerType === "mouse") return;
+          clearTimeout(longPressTimer);
+          longPressTimer = setTimeout(() => openContextMenu(entry.id, event.clientX, event.clientY), 520);
+        });
+        body.addEventListener("pointerup", () => clearTimeout(longPressTimer));
+        body.addEventListener("pointercancel", () => clearTimeout(longPressTimer));
+        article.append(menuButton, body);
+        return article;
+      }
+
+      function toggleEntry(id, article) {
+        if (expandedEntryIds.has(id)) {
+          expandedEntryIds.delete(id);
+          article.classList.remove("expanded");
+          article.classList.add("collapsed");
+        } else {
+          expandedEntryIds.add(id);
+          article.classList.add("expanded");
+          article.classList.remove("collapsed");
+        }
+        const toggleButton = article.querySelector(".entry-toggle");
+        if (toggleButton) toggleButton.textContent = expandedEntryIds.has(id) ? "收起" : "展开";
+      }
+
+      function renderEditPanel(entry) {
+        const editTypeIds = new Set(normalizeEntryTypes(entry.type, new Set(data.types.map((type) => type.id))));
+        const panel = document.createElement("div");
+        panel.className = "edit-panel";
+
+        const textarea = document.createElement("textarea");
+        textarea.value = entry.text;
+        textarea.addEventListener("keydown", (event) => {
+          if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+            event.preventDefault();
+            saveEdit(entry.id, textarea.value, [...editTypeIds]);
+          }
+        });
+
+        const chips = document.createElement("div");
+        chips.className = "edit-types";
+        data.types.forEach((type) => {
+          const chip = document.createElement("button");
+          chip.type = "button";
+          chip.className = `type-chip${editTypeIds.has(type.id) ? " selected" : ""}`;
+          chip.style.setProperty("--chip-color", type.color);
+          chip.innerHTML = `<span class="chip-dot"></span>${escapeHtml(type.label)}`;
+          chip.addEventListener("click", () => {
+            if (editTypeIds.has(type.id)) {
+              editTypeIds.delete(type.id);
+              chip.classList.remove("selected");
+            } else {
+              editTypeIds.add(type.id);
+              chip.classList.add("selected");
+            }
+          });
+          chips.append(chip);
+        });
+
+        const actions = document.createElement("div");
+        actions.className = "edit-actions";
+
+        const left = document.createElement("div");
+        const deleteButton = document.createElement("button");
+        deleteButton.type = "button";
+        deleteButton.className = "text-btn danger";
+        deleteButton.textContent = "删除";
+        deleteButton.addEventListener("click", () => requestDeleteEntry(entry.id));
+        left.append(deleteButton);
+
+        const right = document.createElement("div");
+        const cancelButton = document.createElement("button");
+        cancelButton.type = "button";
+        cancelButton.className = "text-btn";
+        cancelButton.textContent = "取消";
+        cancelButton.addEventListener("click", () => {
+          editingId = null;
+          renderFeed();
+          els.input.focus();
+        });
+
+        const saveButton = document.createElement("button");
+        saveButton.type = "button";
+        saveButton.className = "primary-btn";
+        saveButton.textContent = "保存";
+        saveButton.addEventListener("click", () => saveEdit(entry.id, textarea.value, [...editTypeIds]));
+        right.append(cancelButton, saveButton);
+        actions.append(left, right);
+        panel.append(textarea, chips, actions);
+        setTimeout(() => {
+          textarea.focus();
+          textarea.selectionStart = textarea.value.length;
+        }, 20);
+        return panel;
+      }
+
+      function addEntry() {
+        const text = els.input.value.trim();
+        if (!text) return;
+        const timestamp = nowIso();
+        data.entries.push({
+          id: crypto.randomUUID ? crypto.randomUUID() : fallbackId(),
+          text,
+          type: [...selectedTypeIds],
+          createdAt: timestamp,
+          updatedAt: timestamp
+        });
+        saveData();
+        visibleLimit = Math.max(PAGE_SIZE, visibleLimit);
+        els.input.value = "";
+        selectedTypeIds.clear();
+        els.send.disabled = true;
+        resizeInput();
+        renderAll();
+        els.feed.scrollTop = 0;
+        els.input.focus();
+        scheduleSync();
+      }
+
+      function startEditing(id) {
+        hideContextMenu();
+        editingId = id;
+        renderFeed();
+      }
+
+      function saveEdit(id, text, types) {
+        const entry = data.entries.find((item) => item.id === id);
+        const cleanText = text.trim();
+        if (!entry || !cleanText) return;
+        entry.text = cleanText;
+        entry.type = normalizeEntryTypes(types, new Set(data.types.map((type) => type.id)));
+        entry.updatedAt = nowIso();
+        editingId = null;
+        saveData();
+        renderAll();
+        els.input.focus();
+        scheduleSync();
+      }
+
+      function requestDeleteEntry(id) {
+        openConfirmModal({
+          title: "确认删除",
+          message: "确认删除这条记录？\n此操作不可撤销。",
+          onConfirm: () => performDeleteEntry(id)
+        });
+      }
+
+      function performDeleteEntry(id) {
+        const before = data.entries.length;
+        data.entries = data.entries.filter((entry) => entry.id !== id);
+        if (data.entries.length === before) return;
+        expandedEntryIds.delete(id);
+        editingId = null;
+        saveData();
+        renderAll();
+        els.input.focus();
+        scheduleSync();
+      }
+
+      function openTypesModal() {
+        renderTypesManager();
+        els.typesModal.hidden = false;
+      }
+
+      function renderTypesManager() {
+        els.typesList.innerHTML = "";
+        data.types.forEach((type) => {
+          const row = document.createElement("div");
+          row.className = "type-row";
+
+          const input = document.createElement("input");
+          input.value = type.label;
+          input.maxLength = 12;
+          input.addEventListener("input", () => {
+            type.label = input.value.trim() || "未命名";
+            saveDataAndRefreshTypes();
+          });
+
+          const deleteButton = document.createElement("button");
+          deleteButton.type = "button";
+          deleteButton.className = "text-btn danger";
+          deleteButton.textContent = "删除";
+          deleteButton.addEventListener("click", () => requestDeleteType(type.id));
+
+          const swatches = document.createElement("div");
+          swatches.className = "swatches";
+          TYPE_COLORS.forEach((color) => {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = `swatch${type.color === color ? " selected" : ""}`;
+            button.style.setProperty("--swatch", color);
+            button.setAttribute("aria-label", color);
+            button.addEventListener("click", () => {
+              type.color = color;
+              saveDataAndRefreshTypes();
+              renderTypesManager();
+            });
+            swatches.append(button);
+          });
+
+          row.append(input, deleteButton, swatches);
+          els.typesList.append(row);
+        });
+        els.addTypeButton.disabled = data.types.length >= 8;
+      }
+
+      function saveDataAndRefreshTypes() {
+        data = normalizeData(data);
+        selectedTypeIds = new Set([...selectedTypeIds].filter((id) => getType(id)));
+        saveData();
+        renderTypeTrigger();
+        renderTypePopover();
+        renderFeed();
+        scheduleSync();
+      }
+
+      function addType() {
+        if (data.types.length >= 8) return;
+        data.types.push({
+          id: `type-${fallbackId()}`,
+          label: "新类型",
+          color: TYPE_COLORS[data.types.length % TYPE_COLORS.length]
+        });
+        saveDataAndRefreshTypes();
+        renderTypesManager();
+      }
+
+      function requestDeleteType(id) {
+        const type = getType(id);
+        if (!type) return;
+        openConfirmModal({
+          title: "确认删除类型",
+          message: `确认删除「${type.label}」类型？\n已使用该类型的记录将变为无标签。`,
+          onConfirm: () => deleteType(id)
+        });
+      }
+
+      function deleteType(id) {
+        data.types = data.types.filter((type) => type.id !== id);
+        data.entries.forEach((entry) => {
+          entry.type = normalizeEntryTypes(entry.type, new Set(data.types.map((type) => type.id))).filter((typeId) => typeId !== id);
+        });
+        selectedTypeIds.delete(id);
+        saveDataAndRefreshTypes();
+        renderTypesManager();
+      }
+
+      async function saveSyncSettings() {
+        const token = els.tokenInput.value.trim();
+        const gistId = els.gistInput.value.trim();
+        if (!token) {
+          els.syncError.textContent = "请填写 GitHub Token。";
+          return;
+        }
+
+        settings.token = token;
+        settings.gistId = gistId;
+        settings.lastError = "";
+        saveSettings();
+        localStorage.setItem(FIRST_RUN_KEY, "1");
+        els.syncError.textContent = "";
+
+        const ok = await syncWithGist({ forceCreate: !gistId, reason: "settings" });
+        if (ok) {
+          closeModals();
+          els.input.focus();
+        } else {
+          els.syncError.textContent = settings.lastError || "同步失败，请检查 Token 和 Gist ID。";
+        }
+      }
+
+      function scheduleSync() {
+        clearTimeout(syncTimer);
+        syncTimer = setTimeout(() => syncWithGist({ reason: "change" }), 550);
+      }
+
+      async function syncWithGist(options = {}) {
+        if (!settings.token) return false;
+        if (!navigator.onLine) {
+          settings.status = "failed";
+          settings.lastError = "当前离线，已保存到本地。";
+          saveSettings();
+          renderSyncState();
+          return false;
+        }
+
+        settings.status = "syncing";
+        saveSettings();
+        renderSyncState();
+
+        try {
+          if (!settings.gistId || options.forceCreate) {
+            const created = await githubRequest("https://api.github.com/gists", {
+              method: "POST",
+              body: JSON.stringify({
+                description: "Flux data",
+                public: false,
+                files: { [GIST_FILE]: { content: JSON.stringify(data, null, 2) } }
+              })
+            });
+            settings.gistId = created.id;
+          } else {
+            const remote = await githubRequest(`https://api.github.com/gists/${settings.gistId}`);
+            const file = remote.files && remote.files[GIST_FILE];
+            if (file && file.content) {
+              const remoteData = normalizeData(JSON.parse(file.content));
+              data = mergeData(remoteData, data);
+              saveData();
+            }
+          }
+
+          await githubRequest(`https://api.github.com/gists/${settings.gistId}`, {
+            method: "PATCH",
+            body: JSON.stringify({
+              files: { [GIST_FILE]: { content: JSON.stringify(data, null, 2) } }
+            })
+          });
+
+          settings.status = "synced";
+          settings.lastSync = nowIso();
+          settings.lastError = "";
+          saveSettings();
+          saveData();
+          renderAll();
+          return true;
+        } catch (error) {
+          settings.status = "failed";
+          settings.lastError = error.message || "同步失败";
+          saveSettings();
+          renderSyncState();
+          return false;
+        }
+      }
+
+      async function githubRequest(url, init = {}) {
+        const response = await fetch(url, {
+          ...init,
+          headers: {
+            Accept: "application/vnd.github+json",
+            Authorization: `Bearer ${settings.token}`,
+            "Content-Type": "application/json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            ...(init.headers || {})
+          }
+        });
+        if (!response.ok) {
+          let message = `GitHub ${response.status}`;
+          try {
+            const detail = await response.json();
+            if (detail.message) message = detail.message;
+          } catch (error) {
+            console.warn(error);
+          }
+          throw new Error(message);
+        }
+        return response.json();
+      }
+
+      function mergeData(remote, local) {
+        const mergedEntries = new Map();
+        local.entries.forEach((entry) => mergedEntries.set(entry.id, entry));
+        remote.entries.forEach((entry) => mergedEntries.set(entry.id, entry));
+
+        const remoteTypeIds = new Set(remote.types.map((type) => type.id));
+        const types = [...remote.types];
+        local.types.forEach((type) => {
+          if (!remoteTypeIds.has(type.id) && types.length < 8) types.push(type);
+        });
+
+        const typeIds = new Set(types.map((type) => type.id));
+        const entries = [...mergedEntries.values()].map((entry) => ({
+          ...entry,
+          type: normalizeEntryTypes(entry.type, typeIds)
+        }));
+        return normalizeData({ version: "1.0", types, entries });
+      }
+
+      function openExportModal() {
+        document.querySelector("input[name='exportRange'][value='all']").checked = true;
+        els.exportStartDate.value = "";
+        els.exportEndDate.value = "";
+        updateExportRangeFields();
+        els.exportModal.hidden = false;
+      }
+
+      function updateExportRangeFields() {
+        const selected = document.querySelector("input[name='exportRange']:checked").value;
+        els.customRangeFields.hidden = selected !== "custom";
+      }
+
+      function confirmExport() {
+        const selected = document.querySelector("input[name='exportRange']:checked").value;
+        const range = { type: selected, start: els.exportStartDate.value, end: els.exportEndDate.value };
+        closeModals();
+        exportMarkdown(range);
+      }
+
+      function entriesForExport(range = { type: "all" }) {
+        const entries = sortedEntries();
+        if (!range || range.type === "all") return entries;
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        let start = null;
+        let end = new Date(today);
+        end.setHours(23, 59, 59, 999);
+
+        if (range.type === "today") {
+          start = today;
+        } else if (range.type === "7" || range.type === "30") {
+          start = new Date(today);
+          start.setDate(start.getDate() - Number(range.type) + 1);
+        } else if (range.type === "custom") {
+          start = range.start ? new Date(`${range.start}T00:00:00`) : null;
+          end = range.end ? new Date(`${range.end}T23:59:59`) : end;
+        }
+
+        return entries.filter((entry) => {
+          const created = new Date(entry.createdAt);
+          return (!start || created >= start) && created <= end;
+        });
+      }
+
+      function exportMarkdown(range) {
+        const stamp = formatDisplay(nowIso());
+        const lines = [`# Flux 导出 · ${stamp}`, ""];
+        groupEntries(entriesForExport(range)).forEach((group) => {
+          lines.push(`## ${group.key}`, "");
+          group.items.forEach((entry) => {
+            const tags = getEntryTypes(entry).map((type) => `#${type.label.replace(/`/g, "")}`).join(" ");
+            const tag = tags ? ` \`${tags}\`` : "";
+            lines.push(`- **${formatDisplay(entry.createdAt)}**${tag} ${entry.text.replace(/\s+/g, " ").trim()}`);
+          });
+          lines.push("");
+        });
+
+        const blob = new Blob([lines.join("\n")], { type: "text/markdown;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `flux-export-${dateKey(nowIso())}.md`;
+        document.body.append(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      function openConfirmModal({ title, message, onConfirm }) {
+        pendingConfirm = onConfirm;
+        els.confirmTitle.textContent = title;
+        els.confirmMessage.textContent = message;
+        els.confirmDeleteButton.style.background = "var(--danger)";
+        els.confirmModal.hidden = false;
+      }
+
+      function closeConfirmModal() {
+        pendingConfirm = null;
+        els.confirmModal.hidden = true;
+      }
+
+      function openSyncModal() {
+        els.tokenInput.value = settings.token || "";
+        els.gistInput.value = settings.gistId || "";
+        els.syncError.textContent = settings.lastError || "";
+        els.syncModal.hidden = false;
+        setTimeout(() => (settings.token ? els.gistInput : els.tokenInput).focus(), 20);
+      }
+
+      function closeModals() {
+        els.exportModal.hidden = true;
+        els.syncModal.hidden = true;
+        els.typesModal.hidden = true;
+        closeConfirmModal();
+      }
+
+      function toggleTypePopover(event) {
+        event.stopPropagation();
+        hideMenu();
+        hideContextMenu();
+        els.typePopover.hidden = !els.typePopover.hidden;
+      }
+
+      function hideTypePopover() {
+        els.typePopover.hidden = true;
+      }
+
+      function hideMenu() {
+        els.menu.hidden = true;
+      }
+
+      function openContextMenu(id, x, y) {
+        contextEntryId = id;
+        hideMenu();
+        hideTypePopover();
+        const width = 116;
+        const left = Math.min(x, window.innerWidth - width - 8);
+        const top = Math.min(y, window.innerHeight - 84);
+        els.contextMenu.style.left = `${Math.max(8, left)}px`;
+        els.contextMenu.style.top = `${Math.max(8, top)}px`;
+        els.contextMenu.hidden = false;
+      }
+
+      function hideContextMenu() {
+        els.contextMenu.hidden = true;
+        contextEntryId = null;
+      }
+
+      function resizeInput() {
+        els.input.style.height = "auto";
+        els.input.style.height = `${Math.min(205, Math.max(78, els.input.scrollHeight))}px`;
+      }
+
+      function sortedEntries() {
+        return [...data.entries].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      }
+
+      function groupEntries(entries) {
+        const groups = [];
+        entries.forEach((entry) => {
+          const key = dateKey(entry.createdAt);
+          let group = groups[groups.length - 1];
+          if (!group || group.key !== key) {
+            group = { key, items: [] };
+            groups.push(group);
+          }
+          group.items.push(entry);
+        });
+        return groups;
+      }
+
+      function normalizeEntryTypes(value, typeIds) {
+        const raw = Array.isArray(value) ? value : (typeof value === "string" && value ? [value] : []);
+        return [...new Set(raw.map(String).filter((id) => typeIds.has(id)))];
+      }
+
+      function getEntryTypes(entry) {
+        return normalizeEntryTypes(entry.type, new Set(data.types.map((type) => type.id)))
+          .map((id) => getType(id))
+          .filter(Boolean);
+      }
+
+      function renderTag(type) {
+        const color = tagColors(type.color);
+        return `<span class="entry-tag" style="--tag-bg:${color.bg};--tag-color:${color.text}">${escapeHtml(type.label)}</span>`;
+      }
+
+      function tagColors(color) {
+        const defaults = {
+          "#7F77DD": { bg: "rgba(127, 119, 221, 0.12)", text: "#534AB7" },
+          "#1D9E75": { bg: "rgba(29, 158, 117, 0.12)", text: "#0F6E56" },
+          "#D4537E": { bg: "rgba(212, 83, 126, 0.12)", text: "#993556" },
+          "#BA7517": { bg: "rgba(186, 117, 23, 0.12)", text: "#854F0B" }
+        };
+        if (defaults[color]) return defaults[color];
+        const rgb = hexToRgb(color) || { r: 127, g: 119, b: 221 };
+        return {
+          bg: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.12)`,
+          text: darkenRgb(rgb, 0.62)
+        };
+      }
+
+      function hexToRgb(color) {
+        const match = /^#([0-9a-fA-F]{6})$/.exec(color || "");
+        if (!match) return null;
+        const value = Number.parseInt(match[1], 16);
+        return { r: (value >> 16) & 255, g: (value >> 8) & 255, b: value & 255 };
+      }
+
+      function darkenRgb(rgb, factor) {
+        return `rgb(${Math.round(rgb.r * factor)}, ${Math.round(rgb.g * factor)}, ${Math.round(rgb.b * factor)})`;
+      }
+
+      function textNeedsToggle(text) {
+        const visualLines = String(text).split("\n").reduce((count, line) => {
+          return count + Math.max(1, Math.ceil(line.length / 30));
+        }, 0);
+        return visualLines > 5;
+      }
+
+      function getType(id) {
+        return data.types.find((type) => type.id === id) || null;
+      }
+
+      function groupTitle(key) {
+        const today = dateKey(nowIso());
+        const yesterday = dateKey(new Date(Date.now() - 86400000).toISOString());
+        const date = new Date(`${key}T00:00:00`);
+        const monthDay = `${date.getMonth() + 1}月${date.getDate()}日`;
+        if (key === today) return `今天 · ${monthDay}`;
+        if (key === yesterday) return `昨天 · ${monthDay}`;
+        return monthDay;
+      }
+
+      function formatDisplay(iso) {
+        const date = new Date(iso);
+        const parts = [
+          date.getFullYear(),
+          pad(date.getMonth() + 1),
+          pad(date.getDate())
+        ];
+        return `${parts.join("-")} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+      }
+
+      function dateKey(iso) {
+        const date = new Date(iso);
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+      }
+
+      function nowIso() {
+        const date = new Date();
+        const offset = -date.getTimezoneOffset();
+        const sign = offset >= 0 ? "+" : "-";
+        const abs = Math.abs(offset);
+        return [
+          date.getFullYear(),
+          "-",
+          pad(date.getMonth() + 1),
+          "-",
+          pad(date.getDate()),
+          "T",
+          pad(date.getHours()),
+          ":",
+          pad(date.getMinutes()),
+          ":",
+          pad(date.getSeconds()),
+          sign,
+          pad(Math.floor(abs / 60)),
+          ":",
+          pad(abs % 60)
+        ].join("");
+      }
+
+      function pad(value) {
+        return String(value).padStart(2, "0");
+      }
+
+      function fallbackId() {
+        return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+      }
+
+      function validColor(color) {
+        return /^#[0-9a-fA-F]{6}$/.test(String(color || ""));
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function initPwa() {
+        const logoSvg = `<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><rect width="512" height="512" rx="112" fill="#7F77DD"/><rect x="120" y="176" width="272" height="28" rx="14" fill="white" opacity="0.95"/><rect x="120" y="242" width="200" height="28" rx="14" fill="white" opacity="0.95"/><rect x="120" y="308" width="136" height="28" rx="14" fill="white" opacity="0.95"/></svg>`;
+        const icon = `data:image/svg+xml;base64,${btoa(logoSvg)}`;
+        const manifest = {
+          name: "Flux",
+          short_name: "Flux",
+          theme_color: "#7F77DD",
+          background_color: "#FAFAFA",
+          display: "standalone",
+          start_url: ".",
+          icons: [{ src: icon, sizes: "512x512", type: "image/svg+xml", purpose: "any maskable" }]
+        };
+        const link = document.createElement("link");
+        link.rel = "manifest";
+        link.href = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" }));
+        document.head.append(link);
+        const appleIcon = document.createElement("link");
+        appleIcon.rel = "apple-touch-icon";
+        appleIcon.href = icon;
+        document.head.append(appleIcon);
+
+        if ("serviceWorker" in navigator && location.protocol !== "file:") {
+          const worker = `
+            const CACHE = "flux-pwa-v1";
+            self.addEventListener("install", event => {
+              event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(["./"])));
+              self.skipWaiting();
+            });
+            self.addEventListener("activate", event => {
+              event.waitUntil(self.clients.claim());
+            });
+            self.addEventListener("fetch", event => {
+              if (event.request.method !== "GET") return;
+              event.respondWith(fetch(event.request).then(response => {
+                const copy = response.clone();
+                caches.open(CACHE).then(cache => cache.put(event.request, copy));
+                return response;
+              }).catch(() => caches.match(event.request).then(cached => cached || caches.match("./"))));
+            });
+          `;
+          const workerUrl = URL.createObjectURL(new Blob([worker], { type: "text/javascript" }));
+          navigator.serviceWorker.register("./sw.js").catch(() => {
+            navigator.serviceWorker.register(workerUrl).catch(console.warn);
+          });
+        }
+      }
+    })();
+  </script>
+</body>
+</html>
