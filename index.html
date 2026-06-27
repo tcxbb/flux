@@ -243,10 +243,34 @@
 
     .composer-row {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
+      gap: 8px;
       min-height: 42px;
       padding: 3px 8px 8px;
+    }
+
+    .composer-type-area {
+      display: flex;
+      align-items: center;
+      flex: 1;
+      flex-wrap: wrap;
+      gap: 6px;
+      min-width: 0;
+      padding-top: 4px;
+    }
+
+    .selected-type-pills {
+      display: flex;
+      flex: 1;
+      flex-wrap: wrap;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .selected-type-pill {
+      border: 0;
+      cursor: pointer;
     }
 
     .type-trigger {
@@ -280,6 +304,7 @@
     .send-btn {
       display: grid;
       place-items: center;
+      flex: 0 0 auto;
       width: 32px;
       height: 32px;
       border-radius: 50%;
@@ -299,7 +324,7 @@
       position: absolute;
       left: 12px;
       right: 12px;
-      bottom: 58px;
+      top: calc(100% - 4px);
       z-index: 30;
       display: flex;
       flex-wrap: wrap;
@@ -310,7 +335,7 @@
       overflow-x: hidden;
       background: var(--card);
       box-shadow: 0 10px 28px rgba(60, 52, 137, 0.14);
-      transform-origin: bottom left;
+      transform-origin: top left;
       animation: pop 100ms ease-out;
     }
 
@@ -521,6 +546,18 @@
     .entry.editing {
       border-color: rgba(127, 119, 221, 0.42);
       box-shadow: 0 0 0 3px var(--primary-light);
+    }
+
+    .entry.deleting {
+      max-height: var(--delete-height, 180px);
+      overflow: hidden;
+      opacity: 0;
+      transition: opacity 150ms ease-out, max-height 150ms ease-out, margin 150ms ease-out, padding 150ms ease-out;
+    }
+
+    .entry.deleting.collapse {
+      max-height: 0;
+      margin-bottom: 0;
     }
 
     .edit-panel {
@@ -750,8 +787,8 @@
 
     .date-range {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
+      grid-template-columns: 1fr;
+      gap: 12px;
       margin-top: 12px;
     }
 
@@ -887,7 +924,10 @@
       <div class="input-shell">
         <textarea id="captureInput" rows="3" placeholder="此刻的想法…"></textarea>
         <div class="composer-row">
-          <button id="typeTrigger" class="type-trigger" type="button" aria-label="选择类型">#</button>
+          <div class="composer-type-area">
+            <button id="typeTrigger" class="type-trigger" type="button" aria-label="选择类型">#</button>
+            <div id="selectedTypePills" class="selected-type-pills"></div>
+          </div>
           <button id="sendButton" class="send-btn" type="button" aria-label="发送" disabled>↑</button>
         </div>
       </div>
@@ -995,7 +1035,7 @@
       const SETTINGS_KEY = "flux.settings.v1";
       const FIRST_RUN_KEY = "flux.firstRunDismissed";
       const GIST_FILE = "flux-data.json";
-      const APP_VERSION = "v1.3";
+      const APP_VERSION = "v1.4";
       const PAGE_SIZE = 50;
       const TYPE_COLORS = ["#7F77DD", "#1D9E75", "#D4537E", "#BA7517", "#4A90A4", "#C15B44", "#6E6A86", "#2F7D5F"];
 
@@ -1021,6 +1061,7 @@
         versionLine: document.querySelector("#versionLine"),
         typeTrigger: document.querySelector("#typeTrigger"),
         typePopover: document.querySelector("#typePopover"),
+        selectedTypePills: document.querySelector("#selectedTypePills"),
         exportButton: document.querySelector("#exportButton"),
         typesButton: document.querySelector("#typesButton"),
         syncButton: document.querySelector("#syncButton"),
@@ -1058,6 +1099,7 @@
       let contextEntryId = null;
       let longPressTimer = null;
       let pendingConfirm = null;
+      let localWriteHoldUntil = 0;
       const expandedEntryIds = new Set();
 
       initPwa();
@@ -1127,6 +1169,7 @@
         });
         els.addTypeButton.addEventListener("click", addType);
         els.doneTypesButton.addEventListener("click", () => {
+          commitTypeManagerChanges();
           closeModals();
         });
 
@@ -1220,6 +1263,7 @@
         renderSyncState();
         renderVersion();
         renderTypeTrigger();
+        renderSelectedTypePills();
         renderTypePopover();
         renderFeed();
       }
@@ -1245,13 +1289,28 @@
       function renderTypeTrigger() {
         const count = selectedTypeIds.size;
         els.typeTrigger.classList.toggle("active", count > 0);
-        if (!count) {
-          els.typeTrigger.textContent = "#";
-          els.typeTrigger.style.color = "";
-          return;
-        }
-        els.typeTrigger.textContent = `#${count}`;
-        els.typeTrigger.style.color = "var(--primary)";
+        els.typeTrigger.textContent = "#";
+        els.typeTrigger.style.color = count > 0 ? "var(--primary)" : "";
+      }
+
+      function renderSelectedTypePills() {
+        els.selectedTypePills.innerHTML = "";
+        [...selectedTypeIds].map((id) => getType(id)).filter(Boolean).forEach((type) => {
+          const color = tagColors(type.color);
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "entry-tag selected-type-pill";
+          button.style.setProperty("--tag-bg", color.bg);
+          button.style.setProperty("--tag-color", color.text);
+          button.textContent = type.label;
+          button.addEventListener("click", () => {
+            selectedTypeIds.delete(type.id);
+            renderTypeTrigger();
+            renderSelectedTypePills();
+            renderTypePopover();
+          });
+          els.selectedTypePills.append(button);
+        });
       }
 
       function renderTypePopover() {
@@ -1270,6 +1329,7 @@
               selectedTypeIds.add(type.id);
             }
             renderTypeTrigger();
+            renderSelectedTypePills();
             renderTypePopover();
           });
           els.typePopover.append(button);
@@ -1513,11 +1573,29 @@
         const before = data.entries.length;
         data.entries = data.entries.filter((entry) => entry.id !== id);
         if (data.entries.length === before) return;
+        localWriteHoldUntil = Date.now() + 2000;
         expandedEntryIds.delete(id);
         editingId = null;
         saveData();
-        renderAll();
-        scheduleSync();
+        removeEntryFromDom(id);
+        scheduleSync({ skipPull: true });
+      }
+
+      function removeEntryFromDom(id) {
+        const article = els.feed.querySelector(`.entry[data-id="${cssEscape(id)}"]`);
+        if (!article) {
+          renderFeed();
+          return;
+        }
+        article.style.setProperty("--delete-height", `${article.offsetHeight}px`);
+        article.classList.add("deleting");
+        requestAnimationFrame(() => article.classList.add("collapse"));
+        setTimeout(() => {
+          const group = article.closest(".day-group");
+          article.remove();
+          if (group && !group.querySelector(".entry")) group.remove();
+          if (!els.feed.querySelector(".entry")) renderFeed();
+        }, 170);
       }
 
       function openTypesModal() {
@@ -1534,9 +1612,9 @@
           const input = document.createElement("input");
           input.value = type.label;
           input.maxLength = 12;
+          input.dataset.typeId = type.id;
           input.addEventListener("input", () => {
             type.label = input.value.trim() || "未命名";
-            saveDataAndRefreshTypes();
           });
 
           const deleteButton = document.createElement("button");
@@ -1572,9 +1650,18 @@
         selectedTypeIds = new Set([...selectedTypeIds].filter((id) => getType(id)));
         saveData();
         renderTypeTrigger();
+        renderSelectedTypePills();
         renderTypePopover();
         renderFeed();
         scheduleSync();
+      }
+
+      function commitTypeManagerChanges() {
+        els.typesList.querySelectorAll("input[data-type-id]").forEach((input) => {
+          const type = getType(input.dataset.typeId);
+          if (type) type.label = input.value.trim() || "未命名";
+        });
+        saveDataAndRefreshTypes();
       }
 
       function addType() {
@@ -1631,9 +1718,9 @@
         }
       }
 
-      function scheduleSync() {
+      function scheduleSync(options = {}) {
         clearTimeout(syncTimer);
-        syncTimer = setTimeout(() => syncWithGist({ reason: "change" }), 550);
+        syncTimer = setTimeout(() => syncWithGist({ reason: "change", ...options }), 550);
       }
 
       async function syncWithGist(options = {}) {
@@ -1661,7 +1748,7 @@
               })
             });
             settings.gistId = created.id;
-          } else {
+          } else if (!options.skipPull && Date.now() >= localWriteHoldUntil) {
             const remote = await githubRequest(`https://api.github.com/gists/${settings.gistId}`);
             const file = remote.files && remote.files[GIST_FILE];
             if (file && file.content) {
@@ -1683,7 +1770,8 @@
           settings.lastError = "";
           saveSettings();
           saveData();
-          renderAll();
+          if (!options.skipPull && Date.now() >= localWriteHoldUntil) renderAll();
+          else renderSyncState();
           return true;
         } catch (error) {
           settings.status = "failed";
@@ -2002,6 +2090,11 @@
 
       function validColor(color) {
         return /^#[0-9a-fA-F]{6}$/.test(String(color || ""));
+      }
+
+      function cssEscape(value) {
+        if (window.CSS && CSS.escape) return CSS.escape(value);
+        return String(value).replace(/["\\]/g, "\\$&");
       }
 
       function escapeHtml(value) {
