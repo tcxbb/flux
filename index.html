@@ -17,6 +17,7 @@
       --border: rgba(0, 0, 0, 0.08);
       --text: #1A1A1A;
       --secondary: #888780;
+      --timestamp: #C0BDB8;
       --muted: #B4B2A9;
       --danger: #D4537E;
       --ok: #1D9E75;
@@ -51,6 +52,16 @@
     input,
     textarea {
       font: inherit;
+    }
+
+    button,
+    [role="button"],
+    textarea,
+    input,
+    .entry,
+    .type-chip,
+    .entry-toggle {
+      -webkit-tap-highlight-color: transparent;
     }
 
     input,
@@ -213,6 +224,7 @@
       border: 0.5px solid var(--border);
       border-radius: 10px;
       background: var(--card);
+      -webkit-tap-highlight-color: transparent;
       transition: border-color 120ms ease, box-shadow 120ms ease;
     }
 
@@ -235,6 +247,13 @@
       color: var(--text);
       font-size: 15px;
       line-height: 1.6;
+      -webkit-tap-highlight-color: transparent;
+      transition: box-shadow 150ms ease;
+    }
+
+    #captureInput:focus {
+      outline: none;
+      box-shadow: 0 0 0 1.5px rgba(127, 119, 221, 0.4);
     }
 
     #captureInput::placeholder {
@@ -443,17 +462,17 @@
     .entry-text-wrap {
       position: relative;
       cursor: default;
-      transition: max-height 250ms ease-out;
+      transition: max-height 150ms ease;
     }
 
     .entry.has-overflow .entry-text-wrap {
-      max-height: 112px;
+      max-height: 120px;
       overflow: hidden;
     }
 
     .entry.expanded .entry-text-wrap {
       max-height: 2000px;
-      transition: max-height 300ms ease-out;
+      transition: max-height 150ms ease;
     }
 
     .entry.has-overflow .entry-text-wrap {
@@ -487,13 +506,28 @@
     .entry-toggle {
       display: none;
       position: absolute;
-      right: 34px;
-      bottom: 31px;
+      right: 100px;
+      bottom: 10px;
       z-index: 1;
+      width: 18px;
+      height: 18px;
       padding: 0;
-      background: transparent;
-      color: var(--primary-deep);
-      font-size: 12px;
+      border: 0;
+      border-radius: 50%;
+      outline: none;
+      background: rgba(0, 0, 0, 0.04);
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 18px;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 150ms ease;
+    }
+
+    .entry-toggle:hover {
+      background: rgba(0, 0, 0, 0.08);
     }
 
     .entry.has-overflow .entry-toggle,
@@ -535,6 +569,7 @@
 
     .entry-time {
       margin-left: auto;
+      color: var(--timestamp);
       white-space: nowrap;
       text-align: right;
     }
@@ -567,15 +602,17 @@
     .edit-panel textarea {
       display: block;
       width: 100%;
-      min-height: 100px;
+      min-height: 78px;
       padding: 8px;
       border: 0.5px solid var(--border);
       border-radius: 8px;
       outline: 0;
       resize: vertical;
       color: var(--text);
+      box-sizing: border-box;
       font-size: 14px;
       line-height: 1.6;
+      transition: box-shadow 150ms ease, border-color 150ms ease;
     }
 
     .edit-panel textarea:focus {
@@ -612,9 +649,41 @@
 
     .edit-actions {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
       gap: 8px;
+      margin-top: 8px;
+    }
+
+    .edit-action-buttons {
+      display: flex;
+      flex: 0 0 auto;
+      gap: 6px;
+    }
+
+    .edit-icon-btn {
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      outline: none;
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .edit-icon-btn.cancel {
+      background: rgba(0, 0, 0, 0.05);
+      color: var(--secondary);
+    }
+
+    .edit-icon-btn.save {
+      background: var(--primary);
+      color: #FFFFFF;
     }
 
     .text-btn,
@@ -1054,7 +1123,7 @@
       const SETTINGS_KEY = "flux.settings.v1";
       const FIRST_RUN_KEY = "flux.firstRunDismissed";
       const GIST_FILE = "flux-data.json";
-      const APP_VERSION = "v1.5";
+      const APP_VERSION = "v1.6";
       const PAGE_SIZE = 50;
       const TYPE_COLORS = ["#7F77DD", "#1D9E75", "#D4537E", "#BA7517", "#4A90A4", "#C15B44", "#6E6A86", "#2F7D5F"];
 
@@ -1427,7 +1496,7 @@
           <div class="entry-text-wrap">
             <div class="entry-text">${escapeHtml(entry.text)}</div>
           </div>
-          ${hasOverflow ? `<button class="entry-toggle" type="button">${isExpanded ? "收起" : "展开"}</button>` : ""}
+          ${hasOverflow ? `<button class="entry-toggle" type="button" aria-label="${isExpanded ? "收起" : "展开"}">${isExpanded ? "∧" : "∨"}</button>` : ""}
           <div class="entry-meta">
             <div class="entry-tags">${types.map((type) => renderTag(type)).join("")}</div>
             <span class="entry-time">${formatDisplay(entry.createdAt)}</span>
@@ -1470,7 +1539,11 @@
           article.classList.remove("collapsed");
         }
         const toggleButton = article.querySelector(".entry-toggle");
-        if (toggleButton) toggleButton.textContent = expandedEntryIds.has(id) ? "收起" : "展开";
+        if (toggleButton) {
+          const expanded = expandedEntryIds.has(id);
+          toggleButton.textContent = expanded ? "∧" : "∨";
+          toggleButton.setAttribute("aria-label", expanded ? "收起" : "展开");
+        }
       }
 
       function renderEditPanel(entry) {
@@ -1498,10 +1571,12 @@
         left.className = "edit-type-row";
 
         const right = document.createElement("div");
+        right.className = "edit-action-buttons";
         const cancelButton = document.createElement("button");
         cancelButton.type = "button";
-        cancelButton.className = "text-btn";
-        cancelButton.textContent = "取消";
+        cancelButton.className = "edit-icon-btn cancel";
+        cancelButton.setAttribute("aria-label", "取消");
+        cancelButton.textContent = "×";
         cancelButton.addEventListener("click", () => {
           editingId = null;
           renderFeed();
@@ -1509,8 +1584,9 @@
 
         const saveButton = document.createElement("button");
         saveButton.type = "button";
-        saveButton.className = "primary-btn";
-        saveButton.textContent = "保存";
+        saveButton.className = "edit-icon-btn save";
+        saveButton.setAttribute("aria-label", "保存");
+        saveButton.textContent = "✓";
         saveButton.addEventListener("click", () => saveEdit(entry.id, textarea.value, [...editTypeIds]));
         right.append(cancelButton, saveButton);
         actions.append(left, right);
