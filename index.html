@@ -221,10 +221,15 @@
     }
 
     .input-shell {
-      border: 0.5px solid var(--border);
-      border-radius: 10px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
       background: var(--card);
       -webkit-tap-highlight-color: transparent;
+      transition: border-color 150ms ease;
+    }
+
+    .input-shell:focus-within {
+      border-color: var(--primary-soft);
     }
 
     #captureInput {
@@ -508,10 +513,9 @@
       border-radius: 50%;
       outline: none;
       background: rgba(0, 0, 0, 0.04);
-      color: var(--muted);
       cursor: pointer;
-      font-size: 14px;
-      line-height: 18px;
+      font-size: 0;
+      line-height: 1;
       user-select: none;
       -webkit-user-select: none;
       -webkit-tap-highlight-color: transparent;
@@ -520,6 +524,20 @@
 
     .entry-toggle:hover {
       background: rgba(0, 0, 0, 0.08);
+    }
+
+    .entry-toggle::after {
+      content: "";
+      display: block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--timestamp);
+      transition: background 150ms ease;
+    }
+
+    .entry-toggle:hover::after {
+      background: var(--secondary);
     }
 
     .entry-toggle.placeholder {
@@ -596,12 +614,14 @@
     .edit-panel textarea {
       display: block;
       width: 100%;
-      min-height: 78px;
+      min-height: 144px;
+      max-height: 288px;
       padding: 8px;
       border: 0.5px solid var(--border);
       border-radius: 8px;
       outline: 0;
-      resize: vertical;
+      resize: none;
+      overflow-y: auto;
       color: var(--text);
       box-sizing: border-box;
       font-size: 14px;
@@ -851,6 +871,17 @@
       font-size: 14px;
     }
 
+    .field input[type="date"] {
+      width: 160px;
+      min-height: 36px;
+      padding: 6px 10px;
+      border: 1px solid #E0DEF4;
+      border-radius: 8px;
+      background: #FAFAFA;
+      color: var(--text);
+      font-size: 14px;
+    }
+
     .range-options {
       display: grid;
       gap: 8px;
@@ -992,7 +1023,7 @@
 
     .type-list-row {
       position: relative;
-      border-bottom: 0.5px solid var(--border);
+      padding: 6px 0;
     }
 
     .type-list-main {
@@ -1298,7 +1329,7 @@
       const SETTINGS_KEY = "flux.settings.v1";
       const FIRST_RUN_KEY = "flux.firstRunDismissed";
       const GIST_FILE = "flux-data.json";
-      const APP_VERSION = "v1.7";
+      const APP_VERSION = "v1.8";
       const PAGE_SIZE = 50;
       const TYPE_COLORS = ["#7F77DD", "#1D9E75", "#D4537E", "#BA7517", "#4BA3D3", "#C0392B", "#8E44AD", "#16A085"];
 
@@ -1687,7 +1718,7 @@
           </div>
           <div class="entry-meta">
             <div class="entry-tags">${types.map((type) => renderTag(type)).join("")}</div>
-            ${hasOverflow ? `<button class="entry-toggle" type="button" aria-label="${isExpanded ? "收起" : "展开"}">${isExpanded ? "∧" : "∨"}</button>` : `<span class="entry-toggle placeholder" aria-hidden="true">∨</span>`}
+            ${hasOverflow ? `<button class="entry-toggle" type="button" aria-label="${isExpanded ? "收起" : "展开"}"></button>` : `<span class="entry-toggle placeholder" aria-hidden="true"></span>`}
             <span class="entry-time">${formatDisplay(entry.createdAt)}</span>
           </div>
         `;
@@ -1730,7 +1761,6 @@
         const toggleButton = article.querySelector(".entry-toggle");
         if (toggleButton) {
           const expanded = expandedEntryIds.has(id);
-          toggleButton.textContent = expanded ? "∧" : "∨";
           toggleButton.setAttribute("aria-label", expanded ? "收起" : "展开");
         }
       }
@@ -2176,8 +2206,16 @@
         data.entries.forEach((entry) => {
           entry.type = normalizeEntryTypes(entry.type, new Set(data.types.map((type) => type.id))).filter((typeId) => typeId !== id);
         });
+        localWriteHoldUntil = Date.now() + 2000;
         selectedTypeIds.delete(id);
-        saveDataAndRefreshTypes();
+        data = normalizeData(data);
+        selectedTypeIds = new Set([...selectedTypeIds].filter((typeId) => getType(typeId)));
+        saveData();
+        renderTypeTrigger();
+        renderSelectedTypePills();
+        renderTypePopover();
+        renderFeed();
+        scheduleSync({ skipPull: true });
         renderTypePage();
       }
 
