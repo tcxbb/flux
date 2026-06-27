@@ -392,19 +392,15 @@
     .day-heading {
       display: flex;
       align-items: center;
-      gap: 10px;
-      margin: 8px 0 9px;
+      margin: 20px 0 9px;
       color: var(--muted);
       font-size: 11px;
       font-weight: 500;
       letter-spacing: 0.05em;
     }
 
-    .day-heading::after {
-      content: "";
-      flex: 1;
-      height: 0.5px;
-      background: rgba(0, 0, 0, 0.07);
+    .day-group:first-child .day-heading {
+      margin-top: 8px;
     }
 
     .entry {
@@ -548,6 +544,10 @@
       box-shadow: 0 0 0 3px var(--primary-light);
     }
 
+    .entry.editing .entry-menu-btn {
+      display: none;
+    }
+
     .entry.deleting {
       max-height: var(--delete-height, 180px);
       overflow: hidden;
@@ -589,6 +589,25 @@
       gap: 7px;
       margin: 9px 0;
       overflow-x: hidden;
+    }
+
+    .edit-type-row {
+      position: relative;
+      display: flex;
+      align-items: flex-start;
+      flex: 1;
+      flex-wrap: wrap;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .edit-type-popover {
+      position: absolute;
+      left: 0;
+      right: auto;
+      top: calc(100% + 6px);
+      z-index: 35;
+      min-width: min(320px, calc(100vw - 48px));
     }
 
     .edit-actions {
@@ -1035,7 +1054,7 @@
       const SETTINGS_KEY = "flux.settings.v1";
       const FIRST_RUN_KEY = "flux.firstRunDismissed";
       const GIST_FILE = "flux-data.json";
-      const APP_VERSION = "v1.4";
+      const APP_VERSION = "v1.5";
       const PAGE_SIZE = 50;
       const TYPE_COLORS = ["#7F77DD", "#1D9E75", "#D4537E", "#BA7517", "#4A90A4", "#C15B44", "#6E6A86", "#2F7D5F"];
 
@@ -1182,6 +1201,9 @@
         document.addEventListener("click", (event) => {
           if (!els.menu.contains(event.target) && event.target !== els.menuButton) hideMenu();
           if (!els.typePopover.contains(event.target) && event.target !== els.typeTrigger) hideTypePopover();
+          document.querySelectorAll(".edit-type-popover").forEach((popover) => {
+            if (!popover.hidden && !popover.parentElement.contains(event.target)) popover.hidden = true;
+          });
           if (!els.contextMenu.contains(event.target)) hideContextMenu();
         });
 
@@ -1417,8 +1439,9 @@
           event.stopPropagation();
           toggleEntry(entry.id, article);
         };
-        textWrap.addEventListener("click", () => {
-          if (article.classList.contains("has-overflow") || expandedEntryIds.has(entry.id)) toggleEntry(entry.id, article);
+        textWrap.addEventListener("dblclick", (event) => {
+          event.preventDefault();
+          startEditing(entry.id);
         });
         if (toggleButton) toggleButton.addEventListener("click", toggleDisplay);
         body.addEventListener("contextmenu", (event) => {
@@ -1461,39 +1484,18 @@
           if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
             event.preventDefault();
             saveEdit(entry.id, textarea.value, [...editTypeIds]);
+          } else if (event.key === "Escape") {
+            event.preventDefault();
+            editingId = null;
+            renderFeed();
           }
-        });
-
-        const chips = document.createElement("div");
-        chips.className = "edit-types";
-        data.types.forEach((type) => {
-          const chip = document.createElement("button");
-          chip.type = "button";
-          chip.className = `type-chip${editTypeIds.has(type.id) ? " selected" : ""}`;
-          chip.style.setProperty("--chip-color", type.color);
-          chip.innerHTML = `<span class="chip-dot"></span>${escapeHtml(type.label)}`;
-          chip.addEventListener("click", () => {
-            if (editTypeIds.has(type.id)) {
-              editTypeIds.delete(type.id);
-              chip.classList.remove("selected");
-            } else {
-              editTypeIds.add(type.id);
-              chip.classList.add("selected");
-            }
-          });
-          chips.append(chip);
         });
 
         const actions = document.createElement("div");
         actions.className = "edit-actions";
 
         const left = document.createElement("div");
-        const deleteButton = document.createElement("button");
-        deleteButton.type = "button";
-        deleteButton.className = "text-btn danger";
-        deleteButton.textContent = "删除";
-        deleteButton.addEventListener("click", () => requestDeleteEntry(entry.id));
-        left.append(deleteButton);
+        left.className = "edit-type-row";
 
         const right = document.createElement("div");
         const cancelButton = document.createElement("button");
@@ -1512,7 +1514,59 @@
         saveButton.addEventListener("click", () => saveEdit(entry.id, textarea.value, [...editTypeIds]));
         right.append(cancelButton, saveButton);
         actions.append(left, right);
-        panel.append(textarea, chips, actions);
+        panel.append(textarea, actions);
+
+        const renderEditTypes = () => {
+          left.innerHTML = "";
+          const trigger = document.createElement("button");
+          trigger.type = "button";
+          trigger.className = "type-trigger";
+          trigger.setAttribute("aria-label", "选择类型");
+          trigger.textContent = "#";
+          trigger.style.color = editTypeIds.size ? "var(--primary)" : "";
+
+          const pills = document.createElement("div");
+          pills.className = "selected-type-pills";
+          [...editTypeIds].map((id) => getType(id)).filter(Boolean).forEach((type) => {
+            const color = tagColors(type.color);
+            const pill = document.createElement("button");
+            pill.type = "button";
+            pill.className = "entry-tag selected-type-pill";
+            pill.style.setProperty("--tag-bg", color.bg);
+            pill.style.setProperty("--tag-color", color.text);
+            pill.textContent = type.label;
+            pill.addEventListener("click", () => {
+              editTypeIds.delete(type.id);
+              renderEditTypes();
+            });
+            pills.append(pill);
+          });
+
+          const popover = document.createElement("div");
+          popover.className = "type-popover edit-type-popover";
+          popover.hidden = true;
+          data.types.forEach((type) => {
+            const chip = document.createElement("button");
+            chip.type = "button";
+            chip.className = `type-chip${editTypeIds.has(type.id) ? " selected" : ""}`;
+            chip.style.setProperty("--chip-color", type.color);
+            chip.innerHTML = `<span class="chip-dot"></span>${escapeHtml(type.label)}`;
+            chip.addEventListener("click", (event) => {
+              event.stopPropagation();
+              if (editTypeIds.has(type.id)) editTypeIds.delete(type.id);
+              else editTypeIds.add(type.id);
+              renderEditTypes();
+            });
+            popover.append(chip);
+          });
+
+          trigger.addEventListener("click", (event) => {
+            event.stopPropagation();
+            popover.hidden = !popover.hidden;
+          });
+          left.append(trigger, pills, popover);
+        };
+        renderEditTypes();
         setTimeout(() => {
           textarea.focus();
           textarea.selectionStart = textarea.value.length;
