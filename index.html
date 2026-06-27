@@ -225,12 +225,6 @@
       border-radius: 10px;
       background: var(--card);
       -webkit-tap-highlight-color: transparent;
-      transition: border-color 120ms ease, box-shadow 120ms ease;
-    }
-
-    .input-shell:focus-within {
-      border-color: rgba(127, 119, 221, 0.48);
-      box-shadow: 0 0 0 3px var(--primary-light);
     }
 
     #captureInput {
@@ -248,12 +242,12 @@
       font-size: 15px;
       line-height: 1.6;
       -webkit-tap-highlight-color: transparent;
-      transition: box-shadow 150ms ease;
     }
 
-    #captureInput:focus {
+    #captureInput:focus,
+    #captureInput:focus-visible {
       outline: none;
-      box-shadow: 0 0 0 1.5px rgba(127, 119, 221, 0.4);
+      box-shadow: none;
     }
 
     #captureInput::placeholder {
@@ -504,11 +498,9 @@
     }
 
     .entry-toggle {
-      display: none;
-      position: absolute;
-      right: 100px;
-      bottom: 10px;
-      z-index: 1;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
       width: 18px;
       height: 18px;
       padding: 0;
@@ -530,16 +522,16 @@
       background: rgba(0, 0, 0, 0.08);
     }
 
-    .entry.has-overflow .entry-toggle,
-    .entry.expanded .entry-toggle {
-      display: inline;
+    .entry-toggle.placeholder {
+      opacity: 0;
+      pointer-events: none;
     }
 
     .entry-meta {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
+      gap: 8px;
       margin-top: 10px;
       color: var(--secondary);
       font-size: 12px;
@@ -551,6 +543,7 @@
       align-items: center;
       flex-wrap: wrap;
       gap: 4px;
+      flex: 1 1 auto;
       min-width: 0;
     }
 
@@ -568,6 +561,7 @@
     }
 
     .entry-time {
+      flex: 0 0 auto;
       margin-left: auto;
       color: var(--timestamp);
       white-space: nowrap;
@@ -615,9 +609,10 @@
       transition: box-shadow 150ms ease, border-color 150ms ease;
     }
 
-    .edit-panel textarea:focus {
-      border-color: rgba(127, 119, 221, 0.48);
-      box-shadow: 0 0 0 3px var(--primary-light);
+    .edit-panel textarea:focus,
+    .edit-panel textarea:focus-visible {
+      outline: none;
+      box-shadow: none;
     }
 
     .edit-types {
@@ -631,7 +626,7 @@
     .edit-type-row {
       position: relative;
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       flex: 1;
       flex-wrap: wrap;
       gap: 6px;
@@ -649,7 +644,7 @@
 
     .edit-actions {
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       justify-content: space-between;
       gap: 8px;
       margin-top: 8px;
@@ -658,6 +653,7 @@
     .edit-action-buttons {
       display: flex;
       flex: 0 0 auto;
+      align-items: center;
       gap: 6px;
     }
 
@@ -939,6 +935,176 @@
       box-shadow: 0 0 0 2px #FFFFFF inset;
     }
 
+    .type-page {
+      position: fixed;
+      inset: 0;
+      z-index: 70;
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      max-width: 720px;
+      margin: 0 auto;
+      background: var(--bg);
+      transform: translateX(100%);
+      transition: transform 150ms ease;
+    }
+
+    .type-page.active {
+      transform: translateX(0);
+    }
+
+    .type-page[hidden] {
+      display: none;
+    }
+
+    .type-page-header {
+      position: relative;
+      display: flex;
+      align-items: center;
+      min-height: calc(48px + env(safe-area-inset-top));
+      padding: env(safe-area-inset-top) 14px 0;
+      border-bottom: 0.5px solid var(--border);
+      background: rgba(250, 250, 250, 0.96);
+    }
+
+    .type-back-btn {
+      background: transparent;
+      color: var(--secondary);
+      font-size: 14px;
+    }
+
+    .type-page-title {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      margin-top: env(safe-area-inset-top);
+      color: var(--text);
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    .type-page-body {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 12px 16px calc(72px + env(safe-area-inset-bottom));
+    }
+
+    .type-list-row {
+      position: relative;
+      border-bottom: 0.5px solid var(--border);
+    }
+
+    .type-list-main {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 50px;
+    }
+
+    .type-color-dot {
+      flex: 0 0 auto;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--type-color);
+    }
+
+    .type-name-btn,
+    .type-name-input {
+      flex: 1;
+      min-width: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: var(--text);
+      font-size: 15px;
+      text-align: left;
+    }
+
+    .type-name-input {
+      min-height: 30px;
+      border-bottom: 1px solid var(--primary-soft);
+      outline: none;
+    }
+
+    .type-row-menu-btn {
+      flex: 0 0 auto;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: transparent;
+      color: var(--secondary);
+      font-size: 18px;
+    }
+
+    .type-row-menu {
+      position: absolute;
+      top: 40px;
+      right: 0;
+      z-index: 6;
+      width: 118px;
+      padding: 5px;
+      border: 0.5px solid var(--border);
+      border-radius: 8px;
+      background: #FFFFFF;
+      box-shadow: 0 12px 32px rgba(60, 52, 137, 0.16);
+    }
+
+    .type-row-menu[hidden],
+    .type-color-palette[hidden] {
+      display: none;
+    }
+
+    .type-row-menu button {
+      width: 100%;
+      min-height: 34px;
+      padding: 0 9px;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text);
+      font-size: 14px;
+      text-align: left;
+    }
+
+    .type-row-menu .danger {
+      color: var(--danger);
+    }
+
+    .type-color-palette {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 0 0 12px 22px;
+    }
+
+    .type-color-choice {
+      width: 24px;
+      height: 24px;
+      border: 2px solid transparent;
+      border-radius: 50%;
+      background: var(--type-color);
+    }
+
+    .type-color-choice.selected {
+      border-color: var(--primary-dark);
+      box-shadow: 0 0 0 2px #FFFFFF inset;
+    }
+
+    .add-type-fixed {
+      position: fixed;
+      left: 50%;
+      bottom: calc(14px + env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      width: min(calc(100% - 32px), 688px);
+      min-height: 42px;
+      border-radius: 10px;
+      background: rgba(250, 250, 250, 0.94);
+      color: var(--secondary);
+      font-size: 15px;
+      text-align: left;
+    }
+
     @keyframes pop {
       from {
         opacity: 0;
@@ -1028,6 +1194,15 @@
     <button id="contextEdit" type="button"><span>✏️</span>编辑</button>
     <button id="contextDelete" class="danger" type="button"><span>🗑️</span>删除</button>
   </div>
+
+  <section id="typePage" class="type-page" hidden aria-label="标签管理">
+    <header class="type-page-header">
+      <button id="typeBackButton" class="type-back-btn" type="button">← 返回</button>
+      <div class="type-page-title">标签管理</div>
+    </header>
+    <div id="typePageList" class="type-page-body"></div>
+    <button id="typePageAddButton" class="add-type-fixed" type="button">+ 新增标签</button>
+  </section>
 
   <div id="confirmModal" class="modal-backdrop center" hidden>
     <section class="modal confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
@@ -1123,9 +1298,9 @@
       const SETTINGS_KEY = "flux.settings.v1";
       const FIRST_RUN_KEY = "flux.firstRunDismissed";
       const GIST_FILE = "flux-data.json";
-      const APP_VERSION = "v1.6";
+      const APP_VERSION = "v1.7";
       const PAGE_SIZE = 50;
-      const TYPE_COLORS = ["#7F77DD", "#1D9E75", "#D4537E", "#BA7517", "#4A90A4", "#C15B44", "#6E6A86", "#2F7D5F"];
+      const TYPE_COLORS = ["#7F77DD", "#1D9E75", "#D4537E", "#BA7517", "#4BA3D3", "#C0392B", "#8E44AD", "#16A085"];
 
       const defaultData = {
         version: "1.0",
@@ -1175,7 +1350,11 @@
         doneTypesButton: document.querySelector("#doneTypesButton"),
         contextMenu: document.querySelector("#contextMenu"),
         contextEdit: document.querySelector("#contextEdit"),
-        contextDelete: document.querySelector("#contextDelete")
+        contextDelete: document.querySelector("#contextDelete"),
+        typePage: document.querySelector("#typePage"),
+        typeBackButton: document.querySelector("#typeBackButton"),
+        typePageList: document.querySelector("#typePageList"),
+        typePageAddButton: document.querySelector("#typePageAddButton")
       };
 
       let data = loadData();
@@ -1188,6 +1367,10 @@
       let longPressTimer = null;
       let pendingConfirm = null;
       let localWriteHoldUntil = 0;
+      let editingTypeId = null;
+      let openTypeMenuId = null;
+      let openTypePaletteId = null;
+      let draftTypeId = null;
       const expandedEntryIds = new Set();
 
       initPwa();
@@ -1260,6 +1443,8 @@
           commitTypeManagerChanges();
           closeModals();
         });
+        els.typeBackButton.addEventListener("click", closeTypePage);
+        els.typePageAddButton.addEventListener("click", addTypeFromPage);
 
         document.querySelectorAll("[data-close-modal]").forEach((button) => {
           button.addEventListener("click", () => {
@@ -1270,6 +1455,10 @@
         document.addEventListener("click", (event) => {
           if (!els.menu.contains(event.target) && event.target !== els.menuButton) hideMenu();
           if (!els.typePopover.contains(event.target) && event.target !== els.typeTrigger) hideTypePopover();
+          if (!event.target.closest(".type-list-row")) {
+            openTypeMenuId = null;
+            renderTypePage();
+          }
           document.querySelectorAll(".edit-type-popover").forEach((popover) => {
             if (!popover.hidden && !popover.parentElement.contains(event.target)) popover.hidden = true;
           });
@@ -1496,9 +1685,9 @@
           <div class="entry-text-wrap">
             <div class="entry-text">${escapeHtml(entry.text)}</div>
           </div>
-          ${hasOverflow ? `<button class="entry-toggle" type="button" aria-label="${isExpanded ? "收起" : "展开"}">${isExpanded ? "∧" : "∨"}</button>` : ""}
           <div class="entry-meta">
             <div class="entry-tags">${types.map((type) => renderTag(type)).join("")}</div>
+            ${hasOverflow ? `<button class="entry-toggle" type="button" aria-label="${isExpanded ? "收起" : "展开"}">${isExpanded ? "∧" : "∨"}</button>` : `<span class="entry-toggle placeholder" aria-hidden="true">∨</span>`}
             <span class="entry-time">${formatDisplay(entry.createdAt)}</span>
           </div>
         `;
@@ -1729,8 +1918,175 @@
       }
 
       function openTypesModal() {
-        renderTypesManager();
-        els.typesModal.hidden = false;
+        openTypePage();
+      }
+
+      function openTypePage() {
+        hideMenu();
+        hideContextMenu();
+        editingTypeId = null;
+        openTypeMenuId = null;
+        openTypePaletteId = null;
+        els.typePage.hidden = false;
+        renderTypePage();
+        requestAnimationFrame(() => els.typePage.classList.add("active"));
+      }
+
+      function closeTypePage() {
+        els.typePage.classList.remove("active");
+        setTimeout(() => {
+          els.typePage.hidden = true;
+          editingTypeId = null;
+          openTypeMenuId = null;
+          openTypePaletteId = null;
+          draftTypeId = null;
+        }, 150);
+      }
+
+      function renderTypePage() {
+        if (!els.typePage || els.typePage.hidden) return;
+        els.typePageList.innerHTML = "";
+        data.types.forEach((type) => els.typePageList.append(renderTypePageRow(type)));
+        els.typePageAddButton.disabled = data.types.length >= 8;
+      }
+
+      function renderTypePageRow(type) {
+        const row = document.createElement("div");
+        row.className = "type-list-row";
+        row.dataset.typeId = type.id;
+
+        const main = document.createElement("div");
+        main.className = "type-list-main";
+        main.innerHTML = `<span class="type-color-dot" style="--type-color:${type.color}"></span>`;
+
+        if (editingTypeId === type.id) {
+          const input = document.createElement("input");
+          input.className = "type-name-input";
+          input.value = draftTypeId === type.id && type.label === "新标签" ? "" : type.label;
+          input.placeholder = "输入标签名…";
+          input.addEventListener("blur", () => finishTypeNameEdit(type.id, input.value));
+          input.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              finishTypeNameEdit(type.id, input.value);
+            }
+            if (event.key === "Escape") {
+              editingTypeId = null;
+              if (draftTypeId === type.id) removeDraftType(type.id);
+              else renderTypePage();
+            }
+          });
+          main.append(input);
+          setTimeout(() => {
+            input.focus();
+            input.selectionStart = input.value.length;
+          }, 20);
+        } else {
+          const nameButton = document.createElement("button");
+          nameButton.type = "button";
+          nameButton.className = "type-name-btn";
+          nameButton.textContent = type.label;
+          nameButton.addEventListener("click", () => {
+            editingTypeId = type.id;
+            openTypeMenuId = null;
+            openTypePaletteId = null;
+            renderTypePage();
+          });
+          main.append(nameButton);
+        }
+
+        const menuButton = document.createElement("button");
+        menuButton.type = "button";
+        menuButton.className = "type-row-menu-btn";
+        menuButton.textContent = "⋯";
+        menuButton.addEventListener("click", (event) => {
+          event.stopPropagation();
+          openTypeMenuId = openTypeMenuId === type.id ? null : type.id;
+          openTypePaletteId = null;
+          renderTypePage();
+        });
+        main.append(menuButton);
+        row.append(main);
+
+        const menu = document.createElement("div");
+        menu.className = "type-row-menu";
+        menu.hidden = openTypeMenuId !== type.id;
+        const colorButton = document.createElement("button");
+        colorButton.type = "button";
+        colorButton.textContent = "修改颜色";
+        colorButton.addEventListener("click", (event) => {
+          event.stopPropagation();
+          openTypeMenuId = null;
+          openTypePaletteId = type.id;
+          renderTypePage();
+        });
+        const deleteButton = document.createElement("button");
+        deleteButton.type = "button";
+        deleteButton.className = "danger";
+        deleteButton.textContent = "删除";
+        deleteButton.addEventListener("click", (event) => {
+          event.stopPropagation();
+          openTypeMenuId = null;
+          requestDeleteType(type.id);
+        });
+        menu.append(colorButton, deleteButton);
+        row.append(menu);
+
+        const palette = document.createElement("div");
+        palette.className = "type-color-palette";
+        palette.hidden = openTypePaletteId !== type.id;
+        TYPE_COLORS.forEach((color) => {
+          const swatch = document.createElement("button");
+          swatch.type = "button";
+          swatch.className = `type-color-choice${type.color === color ? " selected" : ""}`;
+          swatch.style.setProperty("--type-color", color);
+          swatch.addEventListener("click", () => {
+            type.color = color;
+            openTypePaletteId = null;
+            saveDataAndRefreshTypes();
+            renderTypePage();
+          });
+          palette.append(swatch);
+        });
+        row.append(palette);
+        return row;
+      }
+
+      function finishTypeNameEdit(id, value) {
+        const type = getType(id);
+        if (!type) return;
+        const next = value.trim();
+        if (!next) {
+          if (draftTypeId === id) removeDraftType(id);
+          else {
+            editingTypeId = null;
+            renderTypePage();
+          }
+          return;
+        }
+        type.label = next.slice(0, 12);
+        editingTypeId = null;
+        if (draftTypeId === id) draftTypeId = null;
+        saveDataAndRefreshTypes();
+        renderTypePage();
+      }
+
+      function addTypeFromPage() {
+        if (data.types.length >= 8) return;
+        const id = `type-${fallbackId()}`;
+        data.types.push({ id, label: "新标签", color: "#7F77DD" });
+        draftTypeId = id;
+        editingTypeId = id;
+        saveData();
+        renderTypePage();
+      }
+
+      function removeDraftType(id) {
+        data.types = data.types.filter((type) => type.id !== id);
+        draftTypeId = null;
+        editingTypeId = null;
+        saveData();
+        renderTypePage();
       }
 
       function renderTypesManager() {
@@ -1822,7 +2178,7 @@
         });
         selectedTypeIds.delete(id);
         saveDataAndRefreshTypes();
-        renderTypesManager();
+        renderTypePage();
       }
 
       async function saveSyncSettings() {
