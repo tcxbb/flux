@@ -1,4 +1,4 @@
-const CACHE = "flux-pwa-v1";
+const CACHE = "flux-pwa-v1.9";
 const APP_SHELL = ["./", "./index.html"];
 
 self.addEventListener("install", (event) => {

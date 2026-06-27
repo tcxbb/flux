@@ -1329,7 +1329,7 @@
       const SETTINGS_KEY = "flux.settings.v1";
       const FIRST_RUN_KEY = "flux.firstRunDismissed";
       const GIST_FILE = "flux-data.json";
-      const APP_VERSION = "v1.8";
+      const APP_VERSION = "v1.9";
       const PAGE_SIZE = 50;
       const TYPE_COLORS = ["#7F77DD", "#1D9E75", "#D4537E", "#BA7517", "#4BA3D3", "#C0392B", "#8E44AD", "#16A085"];
 
@@ -1388,6 +1388,7 @@
         typePageAddButton: document.querySelector("#typePageAddButton")
       };
 
+      let hadLocalData = hasLocalData();
       let data = loadData();
       let settings = loadSettings();
       let selectedTypeIds = new Set();
@@ -1397,7 +1398,8 @@
       let contextEntryId = null;
       let longPressTimer = null;
       let pendingConfirm = null;
-      let localWriteHoldUntil = 0;
+      let isSyncing = false;
+      let pendingSync = false;
       let editingTypeId = null;
       let openTypeMenuId = null;
       let openTypePaletteId = null;
@@ -1411,7 +1413,11 @@
       setTimeout(() => els.input.focus(), 80);
 
       if (settings.token) {
-        syncWithGist({ reason: "startup" });
+        if (hadLocalData) {
+          queueGistSync();
+        } else {
+          pullFromGistOnColdStart();
+        }
       } else if (!localStorage.getItem(FIRST_RUN_KEY)) {
         setTimeout(() => openSyncModal(), 260);
       }
@@ -1505,8 +1511,8 @@
           }
         });
 
-        window.addEventListener("online", () => scheduleSync());
-        window.addEventListener("beforeunload", saveData);
+        window.addEventListener("online", () => queueGistSync());
+        window.addEventListener("beforeunload", persistLocalState);
 
         els.contextEdit.addEventListener("click", () => {
           if (contextEntryId) startEditing(contextEntryId);
@@ -1517,6 +1523,10 @@
           if (contextEntryId) requestDeleteEntry(contextEntryId);
           hideContextMenu();
         });
+      }
+
+      function hasLocalData() {
+        return Boolean(localStorage.getItem(DATA_KEY));
       }
 
       function loadData() {
@@ -1562,8 +1572,26 @@
         }
       }
 
-      function saveData() {
+      function persistLocalState() {
         localStorage.setItem(DATA_KEY, JSON.stringify(data));
+      }
+
+      function saveData(updater, options = {}) {
+        if (typeof updater !== "function") {
+          data = normalizeData(data);
+          selectedTypeIds = new Set([...selectedTypeIds].filter((id) => getType(id)));
+          persistLocalState();
+          queueGistSync();
+          return;
+        }
+        data = normalizeData(updater(data));
+        selectedTypeIds = new Set([...selectedTypeIds].filter((id) => getType(id)));
+        persistLocalState();
+        if (options.render !== false) {
+          if (options.render) options.render();
+          else renderAll();
+        }
+        queueGistSync();
       }
 
       function saveSettings() {
@@ -1922,12 +1950,11 @@
         const before = data.entries.length;
         data.entries = data.entries.filter((entry) => entry.id !== id);
         if (data.entries.length === before) return;
-        localWriteHoldUntil = Date.now() + 2000;
         expandedEntryIds.delete(id);
         editingId = null;
         saveData();
         removeEntryFromDom(id);
-        scheduleSync({ skipPull: true });
+        scheduleSync();
       }
 
       function removeEntryFromDom(id) {
@@ -2206,7 +2233,6 @@
         data.entries.forEach((entry) => {
           entry.type = normalizeEntryTypes(entry.type, new Set(data.types.map((type) => type.id))).filter((typeId) => typeId !== id);
         });
-        localWriteHoldUntil = Date.now() + 2000;
         selectedTypeIds.delete(id);
         data = normalizeData(data);
         selectedTypeIds = new Set([...selectedTypeIds].filter((typeId) => getType(typeId)));
@@ -2215,7 +2241,7 @@
         renderSelectedTypePills();
         renderTypePopover();
         renderFeed();
-        scheduleSync({ skipPull: true });
+        scheduleSync();
         renderTypePage();
       }
 
@@ -2234,7 +2260,7 @@
         localStorage.setItem(FIRST_RUN_KEY, "1");
         els.syncError.textContent = "";
 
-        const ok = await syncWithGist({ forceCreate: !gistId, reason: "settings" });
+        const ok = await runGistPushQueue();
         if (ok) {
           closeModals();
         } else {
@@ -2242,12 +2268,16 @@
         }
       }
 
-      function scheduleSync(options = {}) {
-        clearTimeout(syncTimer);
-        syncTimer = setTimeout(() => syncWithGist({ reason: "change", ...options }), 550);
+      function scheduleSync() {
+        queueGistSync();
       }
 
-      async function syncWithGist(options = {}) {
+      function queueGistSync() {
+        clearTimeout(syncTimer);
+        syncTimer = setTimeout(() => runGistPushQueue(), 550);
+      }
+
+      async function runGistPushQueue() {
         if (!settings.token) return false;
         if (!navigator.onLine) {
           settings.status = "failed";
@@ -2257,45 +2287,24 @@
           return false;
         }
 
+        if (isSyncing) {
+          pendingSync = true;
+          return false;
+        }
+
+        isSyncing = true;
         settings.status = "syncing";
         saveSettings();
         renderSyncState();
 
         try {
-          if (!settings.gistId || options.forceCreate) {
-            const created = await githubRequest("https://api.github.com/gists", {
-              method: "POST",
-              body: JSON.stringify({
-                description: "Flux data",
-                public: false,
-                files: { [GIST_FILE]: { content: JSON.stringify(data, null, 2) } }
-              })
-            });
-            settings.gistId = created.id;
-          } else if (!options.skipPull && Date.now() >= localWriteHoldUntil) {
-            const remote = await githubRequest(`https://api.github.com/gists/${settings.gistId}`);
-            const file = remote.files && remote.files[GIST_FILE];
-            if (file && file.content) {
-              const remoteData = normalizeData(JSON.parse(file.content));
-              data = mergeData(remoteData, data);
-              saveData();
-            }
-          }
-
-          await githubRequest(`https://api.github.com/gists/${settings.gistId}`, {
-            method: "PATCH",
-            body: JSON.stringify({
-              files: { [GIST_FILE]: { content: JSON.stringify(data, null, 2) } }
-            })
-          });
-
+          await pushToGist(data);
           settings.status = "synced";
           settings.lastSync = nowIso();
           settings.lastError = "";
           saveSettings();
-          saveData();
-          if (!options.skipPull && Date.now() >= localWriteHoldUntil) renderAll();
-          else renderSyncState();
+          persistLocalState();
+          renderSyncState();
           return true;
         } catch (error) {
           settings.status = "failed";
@@ -2303,6 +2312,63 @@
           saveSettings();
           renderSyncState();
           return false;
+        } finally {
+          isSyncing = false;
+          if (pendingSync) {
+            pendingSync = false;
+            queueGistSync();
+          }
+        }
+      }
+
+      async function pushToGist(state) {
+        if (!settings.token) return false;
+        if (!settings.gistId) {
+          const created = await githubRequest("https://api.github.com/gists", {
+            method: "POST",
+            body: JSON.stringify({
+              description: "Flux data",
+              public: false,
+              files: { [GIST_FILE]: { content: JSON.stringify(state, null, 2) } }
+            })
+          });
+          settings.gistId = created.id;
+          saveSettings();
+          return true;
+        }
+        await githubRequest(`https://api.github.com/gists/${settings.gistId}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            files: { [GIST_FILE]: { content: JSON.stringify(state, null, 2) } }
+          })
+        });
+        return true;
+      }
+
+      async function pullFromGistOnColdStart() {
+        if (!settings.token || !settings.gistId || hasLocalData()) return;
+        settings.status = "syncing";
+        saveSettings();
+        renderSyncState();
+        try {
+          const remote = await githubRequest(`https://api.github.com/gists/${settings.gistId}`);
+          const file = remote.files && remote.files[GIST_FILE];
+          if (file && file.content && !hasLocalData()) {
+            data = normalizeData(JSON.parse(file.content));
+            persistLocalState();
+            hadLocalData = true;
+            renderAll();
+          }
+          settings.status = "synced";
+          settings.lastSync = nowIso();
+          settings.lastError = "";
+          saveSettings();
+          renderSyncState();
+        } catch (error) {
+          settings.status = "failed";
+          settings.lastError = error.message || "同步失败";
+          saveSettings();
+          renderSyncState();
         }
       }
 
@@ -2328,25 +2394,6 @@
           throw new Error(message);
         }
         return response.json();
-      }
-
-      function mergeData(remote, local) {
-        const mergedEntries = new Map();
-        local.entries.forEach((entry) => mergedEntries.set(entry.id, entry));
-        remote.entries.forEach((entry) => mergedEntries.set(entry.id, entry));
-
-        const remoteTypeIds = new Set(remote.types.map((type) => type.id));
-        const types = [...remote.types];
-        local.types.forEach((type) => {
-          if (!remoteTypeIds.has(type.id) && types.length < 8) types.push(type);
-        });
-
-        const typeIds = new Set(types.map((type) => type.id));
-        const entries = [...mergedEntries.values()].map((entry) => ({
-          ...entry,
-          type: normalizeEntryTypes(entry.type, typeIds)
-        }));
-        return normalizeData({ version: "1.0", types, entries });
       }
 
       function openExportModal() {
@@ -2653,7 +2700,7 @@
 
         if ("serviceWorker" in navigator && location.protocol !== "file:") {
           const worker = `
-            const CACHE = "flux-pwa-v1";
+            const CACHE = "flux-pwa-v1.9";
             self.addEventListener("install", event => {
               event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(["./"])));
               self.skipWaiting();
